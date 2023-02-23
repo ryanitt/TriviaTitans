@@ -21,7 +21,6 @@ function Game() {
   const [answerOptions, setAnswerOptions] = useState([]);
   const [correctAnswer, setCorrectAnswer] = useState("");
   const [clicked, setClicked] = useState(false);
-  const [selectedOption, setSelectedOption] = useState("");
   const [score, setScore] = useState(0);
 
   const fetchData = async () => {
@@ -51,7 +50,6 @@ function Game() {
 
     // Reset clicked state and selected option
     setClicked(false);
-    setSelectedOption("");
   };
 
   const decodeHtmlEntities = (obj) => {
@@ -80,7 +78,6 @@ function Game() {
   const handleAnswerOptionClick = (answerOption) => {
     if (!clicked) {
       setClicked(true);
-      setSelectedOption(answerOption);
 
       if (answerOption === correctAnswer) {
         setScore(score + 10);
@@ -100,52 +97,62 @@ function Game() {
   }, []);
 
   return (
-    <header className="Game-header">
-      <AppShell
-        padding="md"
-        navbar={
-          <Navbar width={{ base: 200 }} height={"100vh"} p="xs" bg="#282c34">
-            <Card>
-              <Text fz="md">Your Score: {score}</Text>
-            </Card>
-          </Navbar>
-        }
-        header={
-          <Header height={70} bg="#282c34">
-            <Button size="lg" component={Link} to="/" className="exit">
-              Exit
-            </Button>
-
+    <AppShell
+      padding="md"
+      navbar={
+        <Navbar width={{ base: 200 }} height={"100vh"} p="xs" bg="#282c34">
+          <Card bg="#393f4a" shadow="sm" radius="md">
             <Center>
-              <Image width={250} src={logo} fit="contain" className="logo" />
+              <Text fz="lg" color="white" fw={500}>
+                Your Score: {score}
+              </Text>
             </Center>
-          </Header>
-        }
-      >
-        <div className="centered">
-          <Card className="question-card" bg="#393f4a" shadow="sm" radius="md">
-            <Center>
-              <Text c="white">{currentQuestion}</Text>
-            </Center>
-            <Space h="xl" />
-            <SimpleGrid cols={2}>
-              {answerOptions.map((option) => (
-                <Button
-                  color={
-                    clicked ? (option === correctAnswer ? "green" : "red") : ""
-                  }
-                  key={option}
-                  onClick={() => handleAnswerOptionClick(option)}
-                  style={{ minWidth: "150px", whiteSpace: "normal" }}
-                >
-                  {option}
-                </Button>
-              ))}
-            </SimpleGrid>
           </Card>
-        </div>
-      </AppShell>
-    </header>
+        </Navbar>
+      }
+      header={
+        <Header height={70} bg="#282c34">
+          <Button size="lg" component={Link} to="/" className="exit">
+            Exit
+          </Button>
+
+          <Center>
+            <Image width={250} src={logo} fit="contain" className="logo" />
+          </Center>
+        </Header>
+      }
+      styles={() => ({
+        main: {
+          backgroundColor: "#282c34",
+        },
+      })}
+    >
+      <div className="centered">
+        <Card className="question-card" bg="#393f4a" shadow="sm" radius="md">
+          <Center>
+            <Text c="white" fz="xl" fw={500}>
+              {currentQuestion}
+            </Text>
+          </Center>
+          <Space h="xl" />
+          <SimpleGrid cols={2}>
+            {answerOptions.map((option) => (
+              <Button
+                color={
+                  clicked ? (option === correctAnswer ? "green" : "red") : ""
+                }
+                key={option}
+                onClick={() => handleAnswerOptionClick(option)}
+                style={{ minWidth: "150px", whiteSpace: "normal" }}
+                className={clicked ? "answer-button--disabled" : ""}
+              >
+                {option}
+              </Button>
+            ))}
+          </SimpleGrid>
+        </Card>
+      </div>
+    </AppShell>
   );
 }
 
