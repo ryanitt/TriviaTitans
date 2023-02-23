@@ -36,6 +36,18 @@
   color: white;
 }
 
+.centered {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+}
+
+.question-card {
+  max-width: 700px;
+  width: 100%;
+}
+
 .exit {
   position: absolute;
   top: 1vh;

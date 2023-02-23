@@ -20,6 +20,8 @@ function Game() {
   const [currentQuestion, setCurrentQuestion] = useState("");
   const [answerOptions, setAnswerOptions] = useState([]);
   const [correctAnswer, setCorrectAnswer] = useState("");
+  const [clicked, setClicked] = useState(false);
+  const [selectedOption, setSelectedOption] = useState("");
   const [score, setScore] = useState(0);
 
   const fetchData = async () => {
@@ -46,6 +48,10 @@ function Game() {
       setAnswerOptions(booleanOptions);
       setCorrectAnswer(decodedData.results[0].correct_answer);
     }
+
+    // Reset clicked state and selected option
+    setClicked(false);
+    setSelectedOption("");
   };
 
   const decodeHtmlEntities = (obj) => {
@@ -72,14 +78,20 @@ function Game() {
   };
 
   const handleAnswerOptionClick = (answerOption) => {
-    if (answerOption === correctAnswer) {
-      setScore(score + 1);
-    }
-    setAnswerOptions([]);
-    setCurrentQuestion("");
-    setCorrectAnswer("");
+    if (!clicked) {
+      setClicked(true);
+      setSelectedOption(answerOption);
 
-    fetchData();
+      if (answerOption === correctAnswer) {
+        setScore(score + 10);
+      }
+    }
+    setTimeout(() => {
+      setAnswerOptions([]);
+      setCurrentQuestion("");
+      setCorrectAnswer("");
+      fetchData();
+    }, 3000);
   };
 
   useEffect(() => {
@@ -94,7 +106,7 @@ function Game() {
         navbar={
           <Navbar width={{ base: 200 }} height={"100vh"} p="xs" bg="#282c34">
             <Card>
-              <Text>Your Score: {score}</Text>
+              <Text fz="md">Your Score: {score}</Text>
             </Card>
           </Navbar>
         }
@@ -110,10 +122,8 @@ function Game() {
           </Header>
         }
       >
-        <Center>
-          <Card
-            style={{ width: "50vw", height: 400, backgroundColor: "#282c34" }}
-          >
+        <div className="centered">
+          <Card className="question-card" bg="#393f4a" shadow="sm" radius="md">
             <Center>
               <Text c="white">{currentQuestion}</Text>
             </Center>
@@ -121,15 +131,19 @@ function Game() {
             <SimpleGrid cols={2}>
               {answerOptions.map((option) => (
                 <Button
+                  color={
+                    clicked ? (option === correctAnswer ? "green" : "red") : ""
+                  }
                   key={option}
                   onClick={() => handleAnswerOptionClick(option)}
+                  style={{ minWidth: "150px", whiteSpace: "normal" }}
                 >
                   {option}
                 </Button>
               ))}
             </SimpleGrid>
           </Card>
-        </Center>
+        </div>
       </AppShell>
     </header>
   );
