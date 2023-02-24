@@ -47,7 +47,16 @@
   margin-top: 10px;
 }
 
+.answer-button {
+  width: 100%;
+  height: 10vh;
+  overflow-x: visible;
+}
+
 .answer-button--disabled {
+  width: 100%;
+  height: 10vh;
+  overflow-x: visible;
   pointer-events: none;
 }
 

@@ -12,6 +12,7 @@ import {
   SimpleGrid,
   Space,
   Text,
+  UnstyledButton,
 } from "@mantine/core";
 import logo from "./logo-removebg-preview.png";
 import he from "he";
@@ -100,7 +101,7 @@ function Game() {
     <AppShell
       padding="md"
       navbar={
-        <Navbar width={{ base: 200 }} height={"100vh"} p="xs" bg="#282c34">
+        <Navbar width={{ base: 200 }} height={"100vh"} p="xs">
           <Card bg="#393f4a" shadow="sm" radius="md">
             <Center>
               <Text fz="lg" color="white" fw={500}>
@@ -111,7 +112,7 @@ function Game() {
         </Navbar>
       }
       header={
-        <Header height={70} bg="#282c34">
+        <Header height={70}>
           <Button size="lg" component={Link} to="/" className="exit">
             Exit
           </Button>
@@ -121,33 +122,49 @@ function Game() {
           </Center>
         </Header>
       }
-      styles={() => ({
-        main: {
-          backgroundColor: "#282c34",
-        },
-      })}
     >
       <div className="centered">
-        <Card className="question-card" bg="#393f4a" shadow="sm" radius="md">
+        <Card className="question-card" shadow="sm" radius="md">
           <Center>
-            <Text c="white" fz="xl" fw={500}>
+            <Text c="white" fz="xl" fw={500} ta="center">
               {currentQuestion}
             </Text>
           </Center>
           <Space h="xl" />
           <SimpleGrid cols={2}>
             {answerOptions.map((option) => (
-              <Button
+              <UnstyledButton
                 color={
                   clicked ? (option === correctAnswer ? "green" : "red") : ""
                 }
+                sx={{
+                  backgroundColor: clicked
+                    ? option === correctAnswer
+                      ? "#2B8A3E"
+                      : "#C92A2A"
+                    : "#1864ab",
+                  borderRadius: "5px",
+                  "&:hover": {
+                    backgroundColor: "#339af0",
+                  },
+                }}
+                p="md"
                 key={option}
                 onClick={() => handleAnswerOptionClick(option)}
-                style={{ minWidth: "150px", whiteSpace: "normal" }}
-                className={clicked ? "answer-button--disabled" : ""}
+                className={
+                  clicked ? "answer-button--disabled" : "answer-button"
+                }
               >
-                {option}
-              </Button>
+                <Text
+                  truncate={false}
+                  lineClamp={2}
+                  ta="center"
+                  fw={500}
+                  color="white"
+                >
+                  {option}
+                </Text>
+              </UnstyledButton>
             ))}
           </SimpleGrid>
         </Card>
