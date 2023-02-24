@@ -16,6 +16,7 @@ import {
 } from "@mantine/core";
 import logo from "./logo-removebg-preview.png";
 import he from "he";
+import Timer from "./Timer";
 
 function Game() {
   const [currentQuestion, setCurrentQuestion] = useState("");
@@ -24,12 +25,13 @@ function Game() {
   const [clicked, setClicked] = useState(false);
   const [score, setScore] = useState(0);
 
+  const [seconds, setSeconds] = useState(10);
+
   const fetchData = async () => {
     const response = await fetch("https://opentdb.com/api.php?amount=1");
     const data = await response.json();
     const decodedData = decodeHtmlEntities(data);
     const type = decodedData.results[0].type;
-    console.log(type);
 
     if (type === "multiple") {
       const multipleOptions = [
@@ -84,6 +86,11 @@ function Game() {
         setScore(score + 10);
       }
     }
+    handleTimer();
+  };
+
+  const handleTimer = () => {
+    setClicked(true);
     setTimeout(() => {
       setAnswerOptions([]);
       setCurrentQuestion("");
@@ -123,6 +130,15 @@ function Game() {
         </Header>
       }
     >
+      <Center>
+        {clicked ? null : (
+          <Timer
+            initialTime={seconds}
+            handleTimer={handleTimer}
+            clicked={clicked}
+          />
+        )}
+      </Center>
       <div className="centered">
         <Card className="question-card" shadow="sm" radius="md">
           <Center>
@@ -134,9 +150,6 @@ function Game() {
           <SimpleGrid cols={2}>
             {answerOptions.map((option) => (
               <UnstyledButton
-                color={
-                  clicked ? (option === correctAnswer ? "green" : "red") : ""
-                }
                 sx={{
                   backgroundColor: clicked
                     ? option === correctAnswer
