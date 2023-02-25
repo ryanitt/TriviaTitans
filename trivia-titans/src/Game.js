@@ -1,6 +1,6 @@
 import "./App.css";
 import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import {
   AppShell,
   Button,
@@ -19,13 +19,19 @@ import he from "he";
 import Timer from "./Timer";
 
 function Game() {
+  const [startGame, setStartGame] = useState(false);
+
   const [currentQuestion, setCurrentQuestion] = useState("");
   const [answerOptions, setAnswerOptions] = useState([]);
   const [correctAnswer, setCorrectAnswer] = useState("");
   const [clicked, setClicked] = useState(false);
   const [score, setScore] = useState(0);
 
-  const [seconds, setSeconds] = useState(10);
+  const seconds = 15;
+  const [timerStarted, setTimerStarted] = useState(false);
+
+  const { state } = useLocation();
+  const { username } = state; // Read values passed on state
 
   const fetchData = async () => {
     const response = await fetch("https://opentdb.com/api.php?amount=1");
@@ -53,6 +59,7 @@ function Game() {
 
     // Reset clicked state and selected option
     setClicked(false);
+    setTimerStarted(true);
   };
 
   const decodeHtmlEntities = (obj) => {
@@ -91,6 +98,7 @@ function Game() {
 
   const handleTimer = () => {
     setClicked(true);
+    setTimerStarted(false);
     setTimeout(() => {
       setAnswerOptions([]);
       setCurrentQuestion("");
@@ -100,9 +108,11 @@ function Game() {
   };
 
   useEffect(() => {
-    setScore(0);
-    fetchData();
-  }, []);
+    if (startGame) {
+      setScore(0);
+      fetchData();
+    }
+  }, [startGame]);
 
   return (
     <AppShell
@@ -112,7 +122,7 @@ function Game() {
           <Card bg="#393f4a" shadow="sm" radius="md">
             <Center>
               <Text fz="lg" color="white" fw={500}>
-                Your Score: {score}
+                {username}: {score}
               </Text>
             </Center>
           </Card>
@@ -131,56 +141,62 @@ function Game() {
       }
     >
       <Center>
-        {clicked ? null : (
+        {clicked ? null : timerStarted ? (
           <Timer
             initialTime={seconds}
             handleTimer={handleTimer}
             clicked={clicked}
           />
-        )}
+        ) : null}
       </Center>
       <div className="centered">
-        <Card className="question-card" shadow="sm" radius="md">
-          <Center>
-            <Text c="white" fz="xl" fw={500} ta="center">
-              {currentQuestion}
-            </Text>
-          </Center>
-          <Space h="xl" />
-          <SimpleGrid cols={2}>
-            {answerOptions.map((option) => (
-              <UnstyledButton
-                sx={{
-                  backgroundColor: clicked
-                    ? option === correctAnswer
-                      ? "#2B8A3E"
-                      : "#C92A2A"
-                    : "#1864ab",
-                  borderRadius: "5px",
-                  "&:hover": {
-                    backgroundColor: "#339af0",
-                  },
-                }}
-                p="md"
-                key={option}
-                onClick={() => handleAnswerOptionClick(option)}
-                className={
-                  clicked ? "answer-button--disabled" : "answer-button"
-                }
-              >
-                <Text
-                  truncate={false}
-                  lineClamp={2}
-                  ta="center"
-                  fw={500}
-                  color="white"
+        {startGame ? (
+          <Card className="question-card" shadow="sm" radius="md">
+            <Center>
+              <Text c="white" fz="xl" fw={500} ta="center">
+                {currentQuestion}
+              </Text>
+            </Center>
+            <Space h="xl" />
+            <SimpleGrid cols={2}>
+              {answerOptions.map((option) => (
+                <UnstyledButton
+                  sx={{
+                    backgroundColor: clicked
+                      ? option === correctAnswer
+                        ? "#2B8A3E"
+                        : "#C92A2A"
+                      : "#1864ab",
+                    borderRadius: "5px",
+                    "&:hover": {
+                      backgroundColor: "#339af0",
+                    },
+                  }}
+                  p="md"
+                  key={option}
+                  onClick={() => handleAnswerOptionClick(option)}
+                  className={
+                    clicked ? "answer-button--disabled" : "answer-button"
+                  }
                 >
-                  {option}
-                </Text>
-              </UnstyledButton>
-            ))}
-          </SimpleGrid>
-        </Card>
+                  <Text
+                    truncate={false}
+                    lineClamp={2}
+                    ta="center"
+                    fw={500}
+                    color="white"
+                  >
+                    {option}
+                  </Text>
+                </UnstyledButton>
+              ))}
+            </SimpleGrid>
+          </Card>
+        ) : (
+          <Button size="xl" onClick={() => setStartGame(true)}>
+            Start Game
+          </Button>
+        )}
       </div>
     </AppShell>
   );

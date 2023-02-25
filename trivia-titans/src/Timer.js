@@ -8,9 +8,6 @@ function Timer(props) {
   useEffect(() => {
     if (seconds === 0 || props.clicked) {
       props.handleTimer();
-      setTimeout(() => {
-        setSeconds(props.initialTime);
-      }, 3000);
     } else {
       intervalRef.current = setInterval(() => {
         if (seconds === 0) {
