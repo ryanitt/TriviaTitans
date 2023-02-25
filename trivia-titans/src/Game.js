@@ -18,7 +18,10 @@ import logo from "./logo-removebg-preview.png";
 import he from "he";
 import Timer from "./Timer";
 
-function Game() {
+const Game = (props) => {
+
+  let socket = props.socket
+
   const [startGame, setStartGame] = useState(false);
 
   const [currentQuestion, setCurrentQuestion] = useState("");
@@ -33,6 +36,7 @@ function Game() {
   const { state } = useLocation();
   const { username } = state; // Read values passed on state
 
+  // fetching data from the trivia db
   const fetchData = async () => {
     const response = await fetch("https://opentdb.com/api.php?amount=1");
     const data = await response.json();
@@ -62,6 +66,7 @@ function Game() {
     setTimerStarted(true);
   };
 
+  // Decode special http characters
   const decodeHtmlEntities = (obj) => {
     if (typeof obj !== "object" || obj === null) {
       return obj;
@@ -76,6 +81,7 @@ function Game() {
     return decodedObj;
   };
 
+  // shuffle answers for choosing
   const shuffleArray = (arr) => {
     const shuffledArr = [...arr];
     for (let i = shuffledArr.length - 1; i > 0; i--) {
@@ -96,6 +102,7 @@ function Game() {
     handleTimer();
   };
 
+  // timer manipulation
   const handleTimer = () => {
     setClicked(true);
     setTimerStarted(false);

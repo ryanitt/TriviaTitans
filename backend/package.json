@@ -1,0 +1,22 @@
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "The backend support for the Trivia Titans game including sockets and server side infrastructure",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/StevenHa0/TriviaTitans.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/StevenHa0/TriviaTitans/issues"
+  },
+  "homepage": "https://github.com/StevenHa0/TriviaTitans#readme",
+  "dependencies": {
+    "socket.io": "^4.6.1"
+  }
+}
