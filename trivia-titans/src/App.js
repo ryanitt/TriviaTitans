@@ -2,25 +2,66 @@ import logo from "./logo.svg";
 import "./App.css";
 import { useNavigate } from "react-router-dom";
 import { Button, Center, Modal, Space, Text, TextInput } from "@mantine/core";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
-function App() {
+const App = (props) => {
   const navigate = useNavigate();
-  const [isNewGameModalOpen, setIsNewGameModalOpen] = useState(false);
-  const [isJoinGameModalOpen, setIsJoinGameModalOpen] = useState(false);
-
+  
+  let appSocket = props.socket;
   const [username, setUsername] = useState("");
   const [gameCode, setGameCode] = useState("");
 
-  const handleNewGame = () => {
-    navigate("/game", { state: { username: username } });
+  const [room, setRoom] = useState("");
+  const [joinGameOpened, setJoinGameOpened] = useState(false);
+  const [limitReached, setLimitReached] = useState(false);
+  const [invalidCode, setInvalidCode] = useState(false);
+
+  const [isNewGameModalOpen, setIsNewGameModalOpen] = useState(false);
+  const [isJoinGameModalOpen, setIsJoinGameModalOpen] = useState(false);
+
+  const useJoinGame = () => {
+    if (room !== "" && !invalidCode && !limitReached) {
+      // TODO: if its an invalid code dont send this emit
+      appSocket.emit("join-room", { room, newGame: false });
+    } else {
+      console.log("Invalid Code");
+    }
   };
+
+  const handleNewGame = () => {
+    let generatedRoom = Math.floor(1000 + Math.random() * 9000).toString();
+
+    setRoom(generatedRoom);
+    appSocket.emit("join-room", { room: generatedRoom, newGame: true });
+    appSocket.emit("send-room", { room: generatedRoom });
+
+    navigate("/game", { state: { username: username, room: generatedRoom } });
+  };
+
+  useEffect(() => {
+    appSocket.on("join-success", (data) => {
+      if (data) navigate("/game");
+    });
+    appSocket.on("limit-reached", (data) => {
+      if (data) setLimitReached(true);
+    });
+    appSocket.on("invalid-code", (data) => {
+      if (data) setInvalidCode(true);
+    });
+    appSocket.on("player-number", (playerNum) => {
+      console.log("IN APP: ", playerNum);
+    });
+    appSocket.on("room-code", (data) => {
+      console.log("ROOM CODE:", data);
+    });
+  }, [appSocket]);
 
   return (
     <header className="App-header">
       <img src={logo} className="App-logo" alt="logo" />
       <Text>Trivia Titans</Text>
       <Space h="lg" />
+      
       <Center>
         <Button
           size="lg"
@@ -55,7 +96,7 @@ function App() {
           />
           <Space h="md" />
           <Center>
-            <Button>Join Game</Button>
+            <Button onClick={useJoinGame}>Join Game</Button>
           </Center>
         </Modal>
         <Modal
@@ -71,7 +112,7 @@ function App() {
           />
           <Space h="md" />
           <Center>
-            <Button onClick={() => handleNewGame()}>Create Game</Button>
+            <Button onClick={handleNewGame}>Create Game</Button>
           </Center>
         </Modal>
       </Center>

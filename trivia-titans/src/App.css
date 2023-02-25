@@ -37,6 +37,12 @@
   left: 1vw;
 }
 
+.room-code {
+  position: absolute;
+  top: 2vh;
+  right: 1vw;
+}
+
 .logo {
   margin-top: 10px;
 }

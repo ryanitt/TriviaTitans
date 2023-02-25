@@ -34,7 +34,7 @@ const Game = (props) => {
   const [timerStarted, setTimerStarted] = useState(false);
 
   const { state } = useLocation();
-  const { username } = state; // Read values passed on state
+  const { username, room } = state; // Read values passed on state
 
   // fetching data from the trivia db
   const fetchData = async () => {
@@ -144,6 +144,7 @@ const Game = (props) => {
           <Center>
             <Image width={250} src={logo} fit="contain" className="logo" />
           </Center>
+          <Text className="room-code" fz="xl" color="white" fw={500}>Room Code: {room}</Text>
         </Header>
       }
     >
