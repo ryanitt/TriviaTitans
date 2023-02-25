@@ -22,7 +22,10 @@ const Game = (props) => {
 
   let socket = props.socket
 
+  var thisRoom = 0;
+
   const [startGame, setStartGame] = useState(false);
+  const [room, setRoom] = useState("");
 
   const [currentQuestion, setCurrentQuestion] = useState("");
   const [answerOptions, setAnswerOptions] = useState([]);
@@ -34,7 +37,8 @@ const Game = (props) => {
   const [timerStarted, setTimerStarted] = useState(false);
 
   const { state } = useLocation();
-  const { username, room } = state; // Read values passed on state
+  const { username } = state; // Read values passed on state
+
 
   // fetching data from the trivia db
   const fetchData = async () => {
@@ -115,6 +119,11 @@ const Game = (props) => {
   };
 
   useEffect(() => {
+    socket.on("room-code", (data) => {
+      setRoom(data);
+      thisRoom = data;
+    });
+
     if (startGame) {
       setScore(0);
       fetchData();

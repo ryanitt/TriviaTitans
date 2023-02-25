@@ -9,7 +9,6 @@ const App = (props) => {
   
   let appSocket = props.socket;
   const [username, setUsername] = useState("");
-  const [gameCode, setGameCode] = useState("");
 
   const [room, setRoom] = useState("");
   const [joinGameOpened, setJoinGameOpened] = useState(false);
@@ -23,6 +22,7 @@ const App = (props) => {
     if (room !== "" && !invalidCode && !limitReached) {
       // TODO: if its an invalid code dont send this emit
       appSocket.emit("join-room", { room, newGame: false });
+    
     } else {
       console.log("Invalid Code");
     }
@@ -33,14 +33,13 @@ const App = (props) => {
 
     setRoom(generatedRoom);
     appSocket.emit("join-room", { room: generatedRoom, newGame: true });
-    appSocket.emit("send-room", { room: generatedRoom });
 
-    navigate("/game", { state: { username: username, room: generatedRoom } });
+    navigate("/game", { state: { username: username } });
   };
 
   useEffect(() => {
     appSocket.on("join-success", (data) => {
-      if (data) navigate("/game");
+      if (data) navigate("/game", { state: { username: username }});
     });
     appSocket.on("limit-reached", (data) => {
       if (data) setLimitReached(true);
@@ -91,8 +90,8 @@ const App = (props) => {
           <TextInput
             label="Game Code"
             placeholder="Enter the 4 letter game code"
-            value={gameCode}
-            onChange={(e) => setGameCode(e.currentTarget.value)}
+            value={room}
+            onChange={(e) => setRoom(e.currentTarget.value)}
           />
           <Space h="md" />
           <Center>

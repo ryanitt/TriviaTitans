@@ -4,7 +4,9 @@
   "description": "The backend support for the Trivia Titans game including sockets and server side infrastructure",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "node server",
+    "dev": "nodemon server"
   },
   "repository": {
     "type": "git",
@@ -17,6 +19,7 @@
   },
   "homepage": "https://github.com/StevenHa0/TriviaTitans#readme",
   "dependencies": {
+    "express": "^4.18.2",
     "socket.io": "^4.6.1"
   }
 }
