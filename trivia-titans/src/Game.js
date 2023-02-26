@@ -1,5 +1,5 @@
 import "./App.css";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   AppShell,
@@ -22,6 +22,7 @@ const Game = (props) => {
   let socket = props.socket
 
   const lobbyStatus = useRef(new Map());
+  const [lobbyElements, setLobbyElements] = useState([]);
 
   const [startGame, setStartGame] = useState(false);
   const [room, setRoom] = useState("");
@@ -52,6 +53,7 @@ const Game = (props) => {
     }
   }
 
+
   socket.on("started-game", () => {
     setStartGame(true);
   });
@@ -63,13 +65,40 @@ const Game = (props) => {
     setClicked(false);
   });
 
+  const arrangeLobby = useCallback((lobby) => {
+    lobbyStatus.current.clear();
+    lobbyStatus.current = lobby;
+
+    setScore(lobbyStatus.current.get(username));
+
+    const elements = [];
+    lobby.forEach(function(value, key) {
+      if (key === username) {
+        elements.push(
+          <Card bg="#E67700" shadow="sm" radius="md">
+            <Center>
+              <Text fz="lg" color="white" fw={500}>{key}: {value}</Text>
+            </Center>
+          </Card>
+        );
+      } else {
+        elements.push(
+          <Card bg="#393f4a" shadow="sm" radius="md">
+            <Center>
+              <Text fz="lg" color="white" fw={500}>{key}: {value}</Text>
+            </Center>
+          </Card>
+        );      }
+    });
+    setLobbyElements(elements);
+  }, [username]);
+
   useEffect(() => {
     socket.on("answer-response", (data) => {
       console.log(data.lobby)
-      lobbyStatus.current = new Map(JSON.parse(data.lobby));
-      setScore(lobbyStatus.current.get(username))
+      arrangeLobby(new Map(JSON.parse(data.lobby)))
     })
-  }, [score]);
+  }, [arrangeLobby, socket]);
 
   // timer manipulation
   // const handleTimer = () => {
@@ -91,13 +120,7 @@ const Game = (props) => {
       padding="md"
       navbar={
         <Navbar width={{ base: 200 }} height={"100vh"} p="xs">
-          <Card bg="#393f4a" shadow="sm" radius="md">
-            <Center>
-              <Text fz="lg" color="white" fw={500}>
-                {username}: {score}
-              </Text>
-            </Center>
-          </Card>
+          {lobbyElements}
         </Navbar>
       }
       header={
