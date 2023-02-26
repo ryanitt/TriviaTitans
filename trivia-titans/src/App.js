@@ -21,7 +21,7 @@ const App = (props) => {
   const useJoinGame = () => {
     if (room.current !== "" && !invalidCode && !limitReached) {
       // TODO: if its an invalid code dont send this emit
-      appSocket.emit("join-room", { room: room.current, newGame: false });
+      appSocket.emit("join-room", { username: username.current, room: room.current, newGame: false });
     
     } else {
       console.log("Invalid Code");
@@ -32,7 +32,7 @@ const App = (props) => {
     let generatedRoom = Math.floor(1000 + Math.random() * 9000).toString();
 
     room.current = generatedRoom;
-    appSocket.emit("join-room", { room: generatedRoom, newGame: true });
+    appSocket.emit("join-room", { username: username.current, room: room.current, newGame: true });
 
     navigate("/game", { state: { username: username.current } });
   };
@@ -46,9 +46,6 @@ const App = (props) => {
     });
     appSocket.on("invalid-code", (data) => {
       if (data) setInvalidCode(true);
-    });
-    appSocket.on("player-number", (playerNum) => {
-      console.log("IN APP: ", playerNum);
     });
     appSocket.on("room-code", (data) => {
       console.log("ROOM CODE:", data);

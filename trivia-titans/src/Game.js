@@ -34,90 +34,23 @@ const Game = (props) => {
   const [score, setScore] = useState(0);
 
   const seconds = 15;
-  const [timerStarted, setTimerStarted] = useState(false);
+  // const [timerStarted, setTimerStarted] = useState(false);
 
   const { state } = useLocation();
   const { username } = state; // Read values passed on state
   
-  console.log("username for this instance is: " + username)
-
-  // fetching data from the trivia db
-  const fetchData = async () => {
-    const response = await fetch("https://opentdb.com/api.php?amount=1");
-    const data = await response.json();
-    const decodedData = decodeHtmlEntities(data);
-    const type = decodedData.results[0].type;
-
-    if (type === "multiple") {
-      const multipleOptions = [
-        decodedData.results[0].correct_answer,
-        decodedData.results[0].incorrect_answers[0],
-        decodedData.results[0].incorrect_answers[1],
-        decodedData.results[0].incorrect_answers[2],
-      ];
-      const shuffledOptions = shuffleArray(multipleOptions);
-      setCurrentQuestion(decodedData.results[0].question);
-      setAnswerOptions(shuffledOptions);
-      setCorrectAnswer(decodedData.results[0].correct_answer);
-    } else {
-      const booleanOptions = ["True", "False"];
-      setCurrentQuestion(decodedData.results[0].question);
-      setAnswerOptions(booleanOptions);
-      setCorrectAnswer(decodedData.results[0].correct_answer);
-    }
-
-    // Reset clicked state and selected option
-    setClicked(false);
-    setTimerStarted(true);
-  };
-
-  // Decode special http characters
-  const decodeHtmlEntities = (obj) => {
-    if (typeof obj !== "object" || obj === null) {
-      return obj;
-    }
-    const decodedObj = {};
-    for (const [key, value] of Object.entries(obj)) {
-      decodedObj[key] = decodeHtmlEntities(value);
-      if (typeof decodedObj[key] === "string") {
-        decodedObj[key] = he.decode(decodedObj[key]);
-      }
-    }
-    return decodedObj;
-  };
-
-  // shuffle answers for choosing
-  const shuffleArray = (arr) => {
-    const shuffledArr = [...arr];
-    for (let i = shuffledArr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffledArr[i], shuffledArr[j]] = [shuffledArr[j], shuffledArr[i]];
-    }
-    return shuffledArr;
-  };
-
-  const handleAnswerOptionClick = (answerOption) => {
-    if (!clicked) {
-      setClicked(true);
-
-      if (answerOption === correctAnswer) {
-        setScore(score + 10);
-      }
-    }
-    handleTimer();
-  };
 
   // timer manipulation
-  const handleTimer = () => {
-    setClicked(true);
-    setTimerStarted(false);
-    setTimeout(() => {
-      setAnswerOptions([]);
-      setCurrentQuestion("");
-      setCorrectAnswer("");
-      fetchData();
-    }, 3000);
-  };
+  // const handleTimer = () => {
+  //   setClicked(true);
+  //   setTimerStarted(false);
+  //   setTimeout(() => {
+  //     setAnswerOptions([]);
+  //     setCurrentQuestion("");
+  //     setCorrectAnswer("");
+  //     fetchData();
+  //   }, 3000);
+  // };
 
   useEffect(() => {
     socket.on("room-code", (data) => {
@@ -125,10 +58,10 @@ const Game = (props) => {
       thisRoom = data;
     });
 
-    if (startGame) {
-      setScore(0);
-      fetchData();
-    }
+    // if (startGame) {
+    //   setScore(0);
+    //   fetchData();
+    // }
   }, [startGame]);
 
   return (
@@ -158,7 +91,7 @@ const Game = (props) => {
         </Header>
       }
     >
-      <Center>
+      {/* <Center>
         {clicked ? null : timerStarted ? (
           <Timer
             initialTime={seconds}
@@ -166,7 +99,7 @@ const Game = (props) => {
             clicked={clicked}
           />
         ) : null}
-      </Center>
+      </Center> */}
       <div className="centered">
         {startGame ? (
           <Card className="question-card" shadow="sm" radius="md">
@@ -192,7 +125,7 @@ const Game = (props) => {
                   }}
                   p="md"
                   key={option}
-                  onClick={() => handleAnswerOptionClick(option)}
+                  // onClick={() => handleAnswerOptionClick(option)}
                   className={
                     clicked ? "answer-button--disabled" : "answer-button"
                   }

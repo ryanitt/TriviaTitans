@@ -15,7 +15,7 @@ const io = socketIo(server, {
 
 
 // Room Management
-let activeRooms = [];
+let activeRooms = new Map();
 
 //in case server and client run on different urls
 let connections = [null, null, null, null, null];
@@ -28,19 +28,17 @@ io.on("connection", (socket) => {
       // this is player 1 - mark that dude
       socket.join(data.room);
       console.log("New Game:", data.room);
-      console.log(`Player ${playerIndex} has connected`);
-      activeRooms.push(data.room);
-      socket.emit("player-number", playerIndex);
-      socket.broadcast.to(data.room).emit("player-number", playerIndex);
+
+      activeRooms.set(data.room, new Map());
+      activeRooms.get(data.room).set(data.username, 0);
+      console.log(`${data.username} has connected`);
+      
       socket.emit("player-connection", playerIndex);
       socket.broadcast.to(data.room).emit("player-connection", playerIndex);
       socket.emit("room-code", data.room);
     } else {
       // check if the code exists
-      let foundCode = activeRooms.find((validCode) => {
-        return validCode == data.room;
-      });
-      if (foundCode) {
+      if (activeRooms.has(data.room)) {
         for (const i in connections) {
           if (connections[i] === null) {
             playerIndex = i;
@@ -55,13 +53,12 @@ io.on("connection", (socket) => {
         }
         socket.join(data.room);
         connections[playerIndex] = false;
-
+        activeRooms.get(data.room).set(data.username, 0);
+        console.log(activeRooms)
         // tell everyone which player just connected
-        console.log(`Player ${playerIndex} has joined ${data.room}`);
+        console.log(`${data.username} has joined ${data.room}`);
         socket.emit("join-success", true);
         socket.broadcast.to(data.room).emit("join-success", true);
-        socket.emit("player-number", playerIndex);
-        socket.broadcast.to(data.room).emit("player-number", playerIndex);
         socket.emit("player-connection", playerIndex);
         socket.broadcast.to(data.room).emit("player-connection", playerIndex);
         socket.emit("room-code", data.room);
@@ -72,7 +69,79 @@ io.on("connection", (socket) => {
   });
 
   
-  // Actual FUNCTIONALITY (TO BE REMOVED)
+  // Trivia Game Logic
+
+  // fetching data from the trivia db
+  const fetchData = async () => {
+    const response = await fetch("https://opentdb.com/api.php?amount=1");
+    const data = await response.json();
+    const decodedData = decodeHtmlEntities(data);
+    const type = decodedData.results[0].type;
+
+    if (type === "multiple") {
+      const multipleOptions = [
+        decodedData.results[0].correct_answer,
+        decodedData.results[0].incorrect_answers[0],
+        decodedData.results[0].incorrect_answers[1],
+        decodedData.results[0].incorrect_answers[2],
+      ];
+      const shuffledOptions = shuffleArray(multipleOptions);
+      setCurrentQuestion(decodedData.results[0].question);
+      setAnswerOptions(shuffledOptions);
+      setCorrectAnswer(decodedData.results[0].correct_answer);
+    } else {
+      const booleanOptions = ["True", "False"];
+      setCurrentQuestion(decodedData.results[0].question);
+      setAnswerOptions(booleanOptions);
+      setCorrectAnswer(decodedData.results[0].correct_answer);
+    }
+
+    // Reset clicked state and selected option
+    setClicked(false);
+    setTimerStarted(true);
+  };
+
+  // Decode special http characters
+  const decodeHtmlEntities = (obj) => {
+    if (typeof obj !== "object" || obj === null) {
+      return obj;
+    }
+    const decodedObj = {};
+    for (const [key, value] of Object.entries(obj)) {
+      decodedObj[key] = decodeHtmlEntities(value);
+      if (typeof decodedObj[key] === "string") {
+        decodedObj[key] = he.decode(decodedObj[key]);
+      }
+    }
+    return decodedObj;
+  };
+
+  // shuffle answers for choosing
+  const shuffleArray = (arr) => {
+    const shuffledArr = [...arr];
+    for (let i = shuffledArr.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [shuffledArr[i], shuffledArr[j]] = [shuffledArr[j], shuffledArr[i]];
+    }
+    return shuffledArr;
+  };
+
+  const handleAnswerOptionClick = (answerOption) => {
+    if (!clicked) {
+      setClicked(true);
+
+      if (answerOption === correctAnswer) {
+        setScore(score + 10);
+      }
+    }
+    // handleTimer();
+  };
+
+
+
+
+
+  // Old FUNCTIONALITY (TO BE REMOVED)
   socket.on("draw-line", (data) => {
     socket.broadcast
       .to(data.room)
