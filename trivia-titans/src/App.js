@@ -8,9 +8,10 @@ const App = (props) => {
   const navigate = useNavigate();
   
   let appSocket = props.socket;
-  const username = useRef("");
 
-  const [room, setRoom] = useState("");
+  const username = useRef("");
+  const room = useRef("");
+
   const [limitReached, setLimitReached] = useState(false);
   const [invalidCode, setInvalidCode] = useState(false);
 
@@ -18,9 +19,9 @@ const App = (props) => {
   const [isJoinGameModalOpen, setIsJoinGameModalOpen] = useState(false);
 
   const useJoinGame = () => {
-    if (room !== "" && !invalidCode && !limitReached) {
+    if (room.current !== "" && !invalidCode && !limitReached) {
       // TODO: if its an invalid code dont send this emit
-      appSocket.emit("join-room", { room, newGame: false });
+      appSocket.emit("join-room", { room: room.current, newGame: false });
     
     } else {
       console.log("Invalid Code");
@@ -30,7 +31,7 @@ const App = (props) => {
   const handleNewGame = () => {
     let generatedRoom = Math.floor(1000 + Math.random() * 9000).toString();
 
-    setRoom(generatedRoom);
+    room.current = generatedRoom;
     appSocket.emit("join-room", { room: generatedRoom, newGame: true });
 
     navigate("/game", { state: { username: username.current } });
@@ -52,7 +53,7 @@ const App = (props) => {
     appSocket.on("room-code", (data) => {
       console.log("ROOM CODE:", data);
     });
-  }, [appSocket]);
+  }, [appSocket, navigate]);
 
   return (
     <header className="App-header">
@@ -89,8 +90,8 @@ const App = (props) => {
           <TextInput
             label="Game Code"
             placeholder="Enter the 4 letter game code"
-            value={room}
-            onChange={(e) => setRoom(e.currentTarget.value)}
+            value={room.current}
+            onChange={(e) => room.current = e.currentTarget.value}
           />
           <Space h="md" />
           <Center>
