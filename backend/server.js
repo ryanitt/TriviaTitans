@@ -73,6 +73,10 @@ io.on("connection", (socket) => {
   var answerOptions = [];
   var correctAnswer = "";
 
+  var answersRecieved = 0;
+  var totalPlayers = 0;
+  var totalPlayersSet = false;
+
   // fetching data from the trivia db
   const fetchData = async () => {
     const response = await fetch("https://opentdb.com/api.php?amount=1");
@@ -130,22 +134,14 @@ io.on("connection", (socket) => {
     return shuffledArr;
   };
 
-  const handleAnswerOptionClick = (answerOption) => {
-    if (!clicked) {
-      setClicked(true);
-
-      if (answerOption === correctAnswer) {
-        setScore(score + 10);
-      }
-    }
-    // handleTimer();
-  };
-
   // Trivia Game Communication
   socket.on("initialize-game", (data) => {
     io.in(data.room)
       .emit("started-game", {});
-
+    if(!totalPlayersSet) {
+      totalPlayers = activeRooms.get(data.room).size;
+      totalPlayersSet = true;
+    }
   });
   socket.on("request-question", async (data) => {
     await fetchData()
@@ -153,13 +149,25 @@ io.on("connection", (socket) => {
       .emit("new-question", { currentQuestion: currentQuestion, answerOptions: answerOptions, correctAnswer: correctAnswer });
   });
 
-  // socket.on("submit-answer", (data) => {
-  //   socket.broadcast
-  //     .to(data.room)
-  //     .emit("update-line", { username:  id: data.lineId, turn: data.currentTurn });
-  // });
+  socket.on("submit-answer", async (data) => {
+    answersRecieved++;
 
-
+    var correctlyAnswered = data.answerOption === correctAnswer;
+    if (correctlyAnswered) {
+      activeRooms.get(data.room).set(data.username, activeRooms.get(data.room).get(data.username) + 10);
+    }
+    
+    io.in(data.room)
+    .emit("answer-response", { lobby: activeRooms.get(data.room) });
+    console.log(`answersRecieved: ${answersRecieved}, totalPlayers: ${totalPlayers}`)
+    if(answersRecieved >= totalPlayers) {
+      await fetchData();
+      answersRecieved = 0;
+      io.in(data.room)
+        .emit("new-question", { currentQuestion: currentQuestion, answerOptions: answerOptions, correctAnswer: correctAnswer });
+      return;
+    }
+  });
 
   // Old FUNCTIONALITY (TO BE REMOVED)
   socket.on("draw-line", (data) => {

@@ -22,7 +22,7 @@ const Game = (props) => {
 
   let socket = props.socket
 
-  var thisRoom = 0;
+  var lobbyStatus = new Map();
 
   const [startGame, setStartGame] = useState(false);
   const [room, setRoom] = useState("");
@@ -46,16 +46,28 @@ const Game = (props) => {
     // setStartGame(true)
   }
 
-  socket.on("started-game", () => {
-    setStartGame(true)
-  });
+  const handleAnswerOptionClick = (answerOption) => {
+    if (!clicked) {
+      setClicked(true);
+      socket.emit("submit-answer", {room: room, username: username, answerOption: answerOption});
+    }
+  }
 
+  socket.on("started-game", () => {
+    setStartGame(true);
+  });
 
   socket.on("new-question", (data) => {
     setCurrentQuestion(data.currentQuestion);
     setAnswerOptions(data.answerOptions);
-    setCorrectAnswer(data.correctAnswer)
+    setCorrectAnswer(data.correctAnswer);
+    setClicked(false);
   });
+
+  socket.on("answer-response", (data) => {
+    lobbyStatus = data.lobby;
+    setScore(lobbyStatus.get(username))
+  })
 
   // timer manipulation
   // const handleTimer = () => {
@@ -72,7 +84,6 @@ const Game = (props) => {
   useEffect(() => {
     socket.on("room-code", (data) => {
       setRoom(data);
-      thisRoom = data;
     });
 
     // if (startGame) {
@@ -142,7 +153,7 @@ const Game = (props) => {
                   }}
                   p="md"
                   key={option}
-                  // onClick={() => handleAnswerOptionClick(option)}
+                  onClick={() => handleAnswerOptionClick(option)}
                   className={
                     clicked ? "answer-button--disabled" : "answer-button"
                   }
