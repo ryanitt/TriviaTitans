@@ -1,5 +1,5 @@
 import "./App.css";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   AppShell,
@@ -15,14 +15,13 @@ import {
   UnstyledButton,
 } from "@mantine/core";
 import logo from "./logo-removebg-preview.png";
-import he from "he";
-import Timer from "./Timer";
+// import Timer from "./Timer";
 
 const Game = (props) => {
 
   let socket = props.socket
 
-  var lobbyStatus = new Map();
+  const lobbyStatus = useRef(new Map());
 
   const [startGame, setStartGame] = useState(false);
   const [room, setRoom] = useState("");
@@ -33,7 +32,7 @@ const Game = (props) => {
   const [clicked, setClicked] = useState(false);
   const [score, setScore] = useState(0);
 
-  const seconds = 15;
+  // const seconds = 15;
   // const [timerStarted, setTimerStarted] = useState(false);
 
   const { state } = useLocation();
@@ -64,10 +63,13 @@ const Game = (props) => {
     setClicked(false);
   });
 
-  socket.on("answer-response", (data) => {
-    lobbyStatus = data.lobby;
-    setScore(lobbyStatus.get(username))
-  })
+  useEffect(() => {
+    socket.on("answer-response", (data) => {
+      console.log(data.lobby)
+      lobbyStatus.current = new Map(JSON.parse(data.lobby));
+      setScore(lobbyStatus.current.get(username))
+    })
+  }, [score]);
 
   // timer manipulation
   // const handleTimer = () => {

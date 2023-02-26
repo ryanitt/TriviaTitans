@@ -83,7 +83,6 @@ io.on("connection", (socket) => {
 
     const data = await response.json();
     const decodedData = decodeHtmlEntities(data);
-    console.log(decodedData)
     const type = decodedData.results[0].type;
 
     if (type === "multiple") {
@@ -154,12 +153,18 @@ io.on("connection", (socket) => {
 
     var correctlyAnswered = data.answerOption === correctAnswer;
     if (correctlyAnswered) {
+      console.log("Modifying Score: ", activeRooms.get(data.room))
       activeRooms.get(data.room).set(data.username, activeRooms.get(data.room).get(data.username) + 10);
+      console.log("Modified Score: ", activeRooms.get(data.room))
+
     }
     
+    let serializableMap = JSON.stringify(Array.from(activeRooms.get(data.room)))
     io.in(data.room)
-    .emit("answer-response", { lobby: activeRooms.get(data.room) });
+    .emit("answer-response", {lobby: serializableMap});
+
     console.log(`answersRecieved: ${answersRecieved}, totalPlayers: ${totalPlayers}`)
+
     if(answersRecieved >= totalPlayers) {
       await fetchData();
       answersRecieved = 0;
