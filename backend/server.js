@@ -17,6 +17,10 @@ var answersRecieved = 0;
 var totalPlayers = 0;
 var totalPlayersSet = false;
 
+var currentQuestion= "";
+var answerOptions = [];
+var correctAnswer = "";
+
 // Room Management
 let activeRooms = new Map();
 
@@ -73,9 +77,6 @@ io.on("connection", (socket) => {
 
   
   // Trivia Game Logic
-  var currentQuestion= "";
-  var answerOptions = [];
-  var correctAnswer = "";
 
   // fetching data from the trivia db
   const fetchData = async () => {
@@ -163,7 +164,7 @@ io.on("connection", (socket) => {
     io.in(data.room)
     .emit("answer-response", {lobby: serializableMap});
 
-    console.log(`answersRecieved: ${answersRecieved}, totalPlayers: ${totalPlayers}`)
+    console.log(`answersRecieved: ${answersRecieved}, totalPlayers: ${totalPlayers}, correctlyAnswered: ${correctlyAnswered}, data.answerOption: ${data.answerOption}, correctAnswer: ${correctAnswer}`)
 
     if(answersRecieved >= totalPlayers) {
       await fetchData();
