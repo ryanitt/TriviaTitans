@@ -80,17 +80,9 @@ const Game = (props) => {
   //     fetchData();
   //   }, 3000);
   // };
-
-  useEffect(() => {
-    socket.on("room-code", (data) => {
-      setRoom(data);
-    });
-
-    // if (startGame) {
-    //   setScore(0);
-    //   fetchData();
-    // }
-  }, [startGame]);
+  socket.on("room-code", (data) => {
+    setRoom(data);
+  });
 
   return (
     <AppShell

@@ -13,6 +13,10 @@ const io = socketIo(server, {
   },
 });
 
+var answersRecieved = 0;
+var totalPlayers = 0;
+var totalPlayersSet = false;
+
 // Room Management
 let activeRooms = new Map();
 
@@ -72,10 +76,6 @@ io.on("connection", (socket) => {
   var currentQuestion= "";
   var answerOptions = [];
   var correctAnswer = "";
-
-  var answersRecieved = 0;
-  var totalPlayers = 0;
-  var totalPlayersSet = false;
 
   // fetching data from the trivia db
   const fetchData = async () => {
