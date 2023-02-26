@@ -2,7 +2,7 @@ const express = require("express");
 const socketIo = require("socket.io");
 const http = require("http");
 const e = require("express");
-
+const he = require("he")
 
 const PORT = process.env.PORT || 8080;
 const app = express();
@@ -12,7 +12,6 @@ const io = socketIo(server, {
     origin: "http://localhost:3000",
   },
 });
-
 
 // Room Management
 let activeRooms = new Map();
@@ -32,7 +31,7 @@ io.on("connection", (socket) => {
       activeRooms.set(data.room, new Map());
       activeRooms.get(data.room).set(data.username, 0);
       console.log(`${data.username} has connected`);
-      
+
       socket.emit("player-connection", playerIndex);
       socket.broadcast.to(data.room).emit("player-connection", playerIndex);
       socket.emit("room-code", data.room);
@@ -70,12 +69,17 @@ io.on("connection", (socket) => {
 
   
   // Trivia Game Logic
+  var currentQuestion= "";
+  var answerOptions = [];
+  var correctAnswer = "";
 
   // fetching data from the trivia db
   const fetchData = async () => {
     const response = await fetch("https://opentdb.com/api.php?amount=1");
+
     const data = await response.json();
     const decodedData = decodeHtmlEntities(data);
+    console.log(decodedData)
     const type = decodedData.results[0].type;
 
     if (type === "multiple") {
@@ -86,19 +90,19 @@ io.on("connection", (socket) => {
         decodedData.results[0].incorrect_answers[2],
       ];
       const shuffledOptions = shuffleArray(multipleOptions);
-      setCurrentQuestion(decodedData.results[0].question);
-      setAnswerOptions(shuffledOptions);
-      setCorrectAnswer(decodedData.results[0].correct_answer);
+      currentQuestion = decodedData.results[0].question;
+      answerOptions = shuffledOptions;
+      correctAnswer = decodedData.results[0].correct_answer;
     } else {
       const booleanOptions = ["True", "False"];
-      setCurrentQuestion(decodedData.results[0].question);
-      setAnswerOptions(booleanOptions);
-      setCorrectAnswer(decodedData.results[0].correct_answer);
+      currentQuestion = decodedData.results[0].question;
+      answerOptions = booleanOptions;
+      correctAnswer = decodedData.results[0].correct_answer;
     }
 
     // Reset clicked state and selected option
-    setClicked(false);
-    setTimerStarted(true);
+    // setClicked(false);
+    // setTimerStarted(true);
   };
 
   // Decode special http characters
@@ -137,7 +141,23 @@ io.on("connection", (socket) => {
     // handleTimer();
   };
 
+  // Trivia Game Communication
+  socket.on("initialize-game", (data) => {
+    io.in(data.room)
+      .emit("started-game", {});
 
+  });
+  socket.on("request-question", async (data) => {
+    await fetchData()
+    io.in(data.room)
+      .emit("new-question", { currentQuestion: currentQuestion, answerOptions: answerOptions, correctAnswer: correctAnswer });
+  });
+
+  // socket.on("submit-answer", (data) => {
+  //   socket.broadcast
+  //     .to(data.room)
+  //     .emit("update-line", { username:  id: data.lineId, turn: data.currentTurn });
+  // });
 
 
 

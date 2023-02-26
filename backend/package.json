@@ -20,6 +20,8 @@
   "homepage": "https://github.com/StevenHa0/TriviaTitans#readme",
   "dependencies": {
     "express": "^4.18.2",
+    "he": "^1.2.0",
+    "react": "^18.2.0",
     "socket.io": "^4.6.1"
   }
 }

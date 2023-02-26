@@ -39,6 +39,23 @@ const Game = (props) => {
   const { state } = useLocation();
   const { username } = state; // Read values passed on state
   
+  const initializeGame = () => {
+    socket.emit("initialize-game", { room: room});
+    socket.emit("request-question", { room: room});
+
+    // setStartGame(true)
+  }
+
+  socket.on("started-game", () => {
+    setStartGame(true)
+  });
+
+
+  socket.on("new-question", (data) => {
+    setCurrentQuestion(data.currentQuestion);
+    setAnswerOptions(data.answerOptions);
+    setCorrectAnswer(data.correctAnswer)
+  });
 
   // timer manipulation
   // const handleTimer = () => {
@@ -144,7 +161,7 @@ const Game = (props) => {
             </SimpleGrid>
           </Card>
         ) : (
-          <Button size="xl" onClick={() => setStartGame(true)}>
+          <Button size="xl" onClick={initializeGame}>
             Start Game
           </Button>
         )}
