@@ -2,16 +2,15 @@ import logo from "./logo.svg";
 import "./App.css";
 import { useNavigate } from "react-router-dom";
 import { Button, Center, Modal, Space, Text, TextInput } from "@mantine/core";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const App = (props) => {
   const navigate = useNavigate();
   
   let appSocket = props.socket;
-  const [username, setUsername] = useState("");
+  const username = useRef("");
 
   const [room, setRoom] = useState("");
-  const [joinGameOpened, setJoinGameOpened] = useState(false);
   const [limitReached, setLimitReached] = useState(false);
   const [invalidCode, setInvalidCode] = useState(false);
 
@@ -34,12 +33,12 @@ const App = (props) => {
     setRoom(generatedRoom);
     appSocket.emit("join-room", { room: generatedRoom, newGame: true });
 
-    navigate("/game", { state: { username: username } });
+    navigate("/game", { state: { username: username.current } });
   };
 
   useEffect(() => {
     appSocket.on("join-success", (data) => {
-      if (data) navigate("/game", { state: { username: username }});
+      if (data) navigate("/game", { state: { username: username.current }});
     });
     appSocket.on("limit-reached", (data) => {
       if (data) setLimitReached(true);
@@ -83,8 +82,8 @@ const App = (props) => {
           <TextInput
             label="Username"
             placeholder="Enter your username"
-            value={username}
-            onChange={(e) => setUsername(e.currentTarget.value)}
+            value={username.current}
+            onChange={(e) => username.current = e.currentTarget.value}
           />
           <Space h="md" />
           <TextInput
@@ -105,8 +104,8 @@ const App = (props) => {
           <TextInput
             label="Username"
             placeholder="Enter your username"
-            value={username}
-            onChange={(e) => setUsername(e.currentTarget.value)}
+            value={username.current}
+            onChange={(e) => username.current = e.currentTarget.value}
             required
           />
           <Space h="md" />

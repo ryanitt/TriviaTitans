@@ -38,7 +38,8 @@ const Game = (props) => {
 
   const { state } = useLocation();
   const { username } = state; // Read values passed on state
-
+  
+  console.log("username for this instance is: " + username)
 
   // fetching data from the trivia db
   const fetchData = async () => {
