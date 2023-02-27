@@ -25,13 +25,16 @@ const Game = (props) => {
   const [lobbyElements, setLobbyElements] = useState([]);
 
   const [startGame, setStartGame] = useState(false);
+  const [endedGame, setEndedGame] = useState(false);
+  const [winner, setWinner] = useState("");
+
+
   const [room, setRoom] = useState("");
 
   const [currentQuestion, setCurrentQuestion] = useState("");
   const [answerOptions, setAnswerOptions] = useState([]);
   const [correctAnswer, setCorrectAnswer] = useState("");
   const [clicked, setClicked] = useState(false);
-  const [score, setScore] = useState(0);
 
   // const seconds = 15;
   // const [timerStarted, setTimerStarted] = useState(false);
@@ -40,6 +43,8 @@ const Game = (props) => {
   const { username } = state; // Read values passed on state
   
   const initializeGame = () => {
+    console.log("Initializing Game");
+
     socket.emit("initialize-game", { room: room});
     socket.emit("request-question", { room: room});
 
@@ -53,11 +58,6 @@ const Game = (props) => {
     }
   }
 
-
-  socket.on("started-game", () => {
-    setStartGame(true);
-  });
-
   socket.on("new-question", (data) => {
     setCurrentQuestion(data.currentQuestion);
     setAnswerOptions(data.answerOptions);
@@ -66,11 +66,22 @@ const Game = (props) => {
   });
 
   const arrangeLobby = useCallback((lobby) => {
+    console.log("arranging");
+
     lobbyStatus.current.clear();
     lobbyStatus.current = lobby;
 
-    setScore(lobbyStatus.current.get(username));
+    // Check if someone won
+    lobby.forEach(function(value, key) {
 
+      if (value >= 20) {
+        setWinner(key);
+        setEndedGame(true);
+        console.log(winner, endedGame);
+      } 
+    });
+
+    // Generate cards
     const elements = [];
     lobby.forEach(function(value, key) {
       if (key === username) {
@@ -91,15 +102,23 @@ const Game = (props) => {
         );      }
     });
     setLobbyElements(elements);
-  }, [username]);
+  }, [username, endedGame, winner]);
 
   useEffect(() => {
-    socket.on("answer-response", (data) => {
+    socket.on("update-lobby", (data) => {
       console.log(data.lobby)
       arrangeLobby(new Map(JSON.parse(data.lobby)))
     })
   }, [arrangeLobby, socket]);
 
+  socket.on("started-game", () => {
+    setStartGame(true);
+  });
+
+  const backToLobby = () => {
+    setStartGame(false);
+    setEndedGame(false);
+  }
   // timer manipulation
   // const handleTimer = () => {
   //   setClicked(true);
@@ -146,7 +165,8 @@ const Game = (props) => {
         ) : null}
       </Center> */}
       <div className="centered">
-        {startGame ? (
+        {startGame ?
+        (
           <Card className="question-card" shadow="sm" radius="md">
             <Center>
               <Text c="white" fz="xl" fw={500} ta="center">
@@ -188,11 +208,28 @@ const Game = (props) => {
               ))}
             </SimpleGrid>
           </Card>
-        ) : (
-          <Button size="xl" onClick={initializeGame}>
-            Start Game
-          </Button>
-        )}
+        )
+        : <>
+          {endedGame ? 
+            (
+              <Center>
+                <Text c="white" fz="xl" fw={500} ta="center">
+                  The winner is {winner}!
+                </Text>
+                <Button size="xl" onClick={backToLobby}>
+                  Back to Lobby
+                </Button>
+              </Center>
+            ) 
+            :(
+              <Button size="xl" onClick={initializeGame}>
+                Start Game
+              </Button>
+            )
+          }
+        </>
+        }
+          
       </div>
     </AppShell>
   );

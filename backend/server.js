@@ -21,8 +21,16 @@ var currentQuestion= "";
 var answerOptions = [];
 var correctAnswer = "";
 
+
+
 // Room Management
 let activeRooms = new Map();
+
+const sendLobbyToRoom = (room) => {
+  let serializableMap = JSON.stringify(Array.from(activeRooms.get(room)))
+        io.in(room)
+        .emit("update-lobby", {lobby: serializableMap});
+};
 
 //in case server and client run on different urls
 let connections = [null, null, null, null, null];
@@ -43,6 +51,8 @@ io.on("connection", (socket) => {
       socket.emit("player-connection", playerIndex);
       socket.broadcast.to(data.room).emit("player-connection", playerIndex);
       socket.emit("room-code", data.room);
+
+      sendLobbyToRoom(data.room);
     } else {
       // check if the code exists
       if (activeRooms.has(data.room)) {
@@ -64,11 +74,15 @@ io.on("connection", (socket) => {
         console.log(activeRooms)
         // tell everyone which player just connected
         console.log(`${data.username} has joined ${data.room}`);
+        sendLobbyToRoom(data.room);
+
         socket.emit("join-success", true);
         socket.broadcast.to(data.room).emit("join-success", true);
         socket.emit("player-connection", playerIndex);
         socket.broadcast.to(data.room).emit("player-connection", playerIndex);
         socket.emit("room-code", data.room);
+
+
       } else {
         socket.emit("invalid-code", true);
       }
@@ -137,11 +151,12 @@ io.on("connection", (socket) => {
   // Trivia Game Communication
   socket.on("initialize-game", (data) => {
     io.in(data.room)
-      .emit("started-game", {});
+    .emit("started-game", {});
     if(!totalPlayersSet) {
       totalPlayers = activeRooms.get(data.room).size;
       totalPlayersSet = true;
     }
+    sendLobbyToRoom(data.room);
   });
   socket.on("request-question", async (data) => {
     await fetchData()
@@ -159,10 +174,7 @@ io.on("connection", (socket) => {
       console.log("Modified Score: ", activeRooms.get(data.room))
 
     }
-    
-    let serializableMap = JSON.stringify(Array.from(activeRooms.get(data.room)))
-    io.in(data.room)
-    .emit("answer-response", {lobby: serializableMap});
+    sendLobbyToRoom(data.room);
 
     console.log(`answersRecieved: ${answersRecieved}, totalPlayers: ${totalPlayers}, correctlyAnswered: ${correctlyAnswered}, data.answerOption: ${data.answerOption}, correctAnswer: ${correctAnswer}`)
 
@@ -173,29 +185,6 @@ io.on("connection", (socket) => {
         .emit("new-question", { currentQuestion: currentQuestion, answerOptions: answerOptions, correctAnswer: correctAnswer });
       return;
     }
-  });
-
-  // Old FUNCTIONALITY (TO BE REMOVED)
-  socket.on("draw-line", (data) => {
-    socket.broadcast
-      .to(data.room)
-      .emit("update-line", { id: data.lineId, turn: data.currentTurn });
-  });
-
-  socket.on("increment-turn", (data) => {
-    let turn = 0;
-    if (data.currentTurn > 3) turn = 1;
-    else turn = data.currentTurn;
-    socket.emit("get-turn", turn);
-    socket.broadcast.to(data.room).emit("get-turn", turn);
-  });
-
-  socket.on("reset-game", (room) => {
-    let index = activeRooms.findIndex((validCode) => {
-      return validCode == room;
-    });
-    activeRooms.splice(index, 1);
-    connections = [null, null, null];
   });
 });
 
