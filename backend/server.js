@@ -4,6 +4,8 @@ const http = require("http");
 const e = require("express");
 const he = require("he")
 
+const fetch = require('node-fetch');
+
 const PORT = process.env.PORT || 8080;
 const app = express();
 const server = http.createServer(app);
@@ -21,15 +23,26 @@ var currentQuestion= "";
 var answerOptions = [];
 var correctAnswer = "";
 
-
-
 // Room Management
 let activeRooms = new Map();
 
 const sendLobbyToRoom = (room) => {
-  let serializableMap = JSON.stringify(Array.from(activeRooms.get(room)))
-        io.in(room)
-        .emit("update-lobby", {lobby: serializableMap});
+  // Check if someone won
+  activeRooms.get(room).forEach(function (value, key) {
+    if (value >= 20) {
+
+      io.in(room)
+        .emit("winner-found", { winner: key });
+      activeRooms.get(room).forEach(function (value, key) {
+        activeRooms.get(room).set(key, 0);
+      });
+    }
+  });
+
+  let serializableMap = JSON.stringify(Array.from(activeRooms.get(room)));
+
+  io.in(room)
+  .emit("update-lobby", {lobby: serializableMap});
 };
 
 //in case server and client run on different urls
@@ -74,13 +87,13 @@ io.on("connection", (socket) => {
         console.log(activeRooms)
         // tell everyone which player just connected
         console.log(`${data.username} has joined ${data.room}`);
-        sendLobbyToRoom(data.room);
 
         socket.emit("join-success", true);
         socket.broadcast.to(data.room).emit("join-success", true);
         socket.emit("player-connection", playerIndex);
         socket.broadcast.to(data.room).emit("player-connection", playerIndex);
         socket.emit("room-code", data.room);
+        sendLobbyToRoom(data.room);
 
 
       } else {

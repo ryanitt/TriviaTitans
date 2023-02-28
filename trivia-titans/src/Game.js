@@ -71,16 +71,6 @@ const Game = (props) => {
     lobbyStatus.current.clear();
     lobbyStatus.current = lobby;
 
-    // Check if someone won
-    lobby.forEach(function(value, key) {
-
-      if (value >= 20) {
-        setWinner(key);
-        setEndedGame(true);
-        console.log(winner, endedGame);
-      } 
-    });
-
     // Generate cards
     const elements = [];
     lobby.forEach(function(value, key) {
@@ -102,7 +92,7 @@ const Game = (props) => {
         );      }
     });
     setLobbyElements(elements);
-  }, [username, endedGame, winner]);
+  }, [username]);
 
   useEffect(() => {
     socket.on("update-lobby", (data) => {
@@ -111,6 +101,14 @@ const Game = (props) => {
     })
   }, [arrangeLobby, socket]);
 
+  useEffect(() => {
+    socket.on("winner-found", (data) => {
+      setWinner(data.winner);
+      setStartGame(false);
+      setEndedGame(true);
+    })
+  }, [winner, socket]);
+
   socket.on("started-game", () => {
     setStartGame(true);
   });
@@ -118,6 +116,7 @@ const Game = (props) => {
   const backToLobby = () => {
     setStartGame(false);
     setEndedGame(false);
+    setWinner("");
   }
   // timer manipulation
   // const handleTimer = () => {
@@ -209,16 +208,24 @@ const Game = (props) => {
             </SimpleGrid>
           </Card>
         )
-        : <>
-          {endedGame ? 
+        :
+          endedGame ? 
             (
               <Center>
-                <Text c="white" fz="xl" fw={500} ta="center">
-                  The winner is {winner}!
-                </Text>
-                <Button size="xl" onClick={backToLobby}>
-                  Back to Lobby
-                </Button>
+                <SimpleGrid>
+                  <div>
+                    <Text c="white" fz="xl" fw={500} ta="center">
+                      The winner is {winner}!
+                    </Text>
+                  </div>
+                  <div>
+                    <Button size="xl" onClick={backToLobby}>
+                      Back to Lobby
+                    </Button>
+                  </div>
+                </SimpleGrid>
+                
+                
               </Center>
             ) 
             :(
@@ -226,8 +233,6 @@ const Game = (props) => {
                 Start Game
               </Button>
             )
-          }
-        </>
         }
           
       </div>
