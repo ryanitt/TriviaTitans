@@ -34,20 +34,18 @@ const Game = (props) => {
   const [correctAnswer, setCorrectAnswer] = useState("");
   const [clicked, setClicked] = useState(false);
 
-  const seconds = 15;
   const [timerStarted, setTimerStarted] = useState(false);
 
   const { state } = useLocation();
   const { username } = state; // Read values passed on state
+
+  const [seconds, setSeconds] = useState(15);
 
   const initializeGame = () => {
     console.log("Initializing Game");
 
     socket.emit("initialize-game", { room: room });
     socket.emit("request-question", { room: room });
-    // setTimerStarted(true);
-
-    // setStartGame(true)
   };
 
   const handleAnswerOptionClick = (answerOption) => {
@@ -65,6 +63,7 @@ const Game = (props) => {
     setCurrentQuestion(data.currentQuestion);
     setAnswerOptions(data.answerOptions);
     setCorrectAnswer(data.correctAnswer);
+    setSeconds(data.time);
     setClicked(false);
   });
 
@@ -146,11 +145,11 @@ const Game = (props) => {
       setAnswerOptions([]);
       setCurrentQuestion("");
       setCorrectAnswer("");
-      // fetchData();
       socket.emit("request-question", { room: room });
       setTimerStarted(true);
     }, 3000);
   };
+
   socket.on("room-code", (data) => {
     setRoom(data);
   });

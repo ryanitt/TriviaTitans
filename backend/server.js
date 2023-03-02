@@ -166,11 +166,14 @@ io.on("connection", (socket) => {
   });
 
   socket.on("request-question", async (data) => {
+    console.log("Requesting Question");
     await fetchData();
+    answersRecieved = 0;
     io.in(data.room).emit("new-question", {
       currentQuestion: currentQuestion,
       answerOptions: answerOptions,
       correctAnswer: correctAnswer,
+      time: 15,
     });
   });
 
@@ -198,6 +201,7 @@ io.on("connection", (socket) => {
         currentQuestion: currentQuestion,
         answerOptions: answerOptions,
         correctAnswer: correctAnswer,
+        time: 15,
       });
       return;
     }
