@@ -197,12 +197,14 @@ io.on("connection", (socket) => {
     if (answersRecieved >= totalPlayers) {
       await fetchData();
       answersRecieved = 0;
-      io.in(data.room).emit("new-question", {
-        currentQuestion: currentQuestion,
-        answerOptions: answerOptions,
-        correctAnswer: correctAnswer,
-        time: 15,
-      });
+      setTimeout(() => {
+        io.in(data.room).emit("new-question", {
+          currentQuestion: currentQuestion,
+          answerOptions: answerOptions,
+          correctAnswer: correctAnswer,
+          time: 15,
+        });
+      }, 3000);
       return;
     }
   });
