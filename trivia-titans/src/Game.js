@@ -1,5 +1,5 @@
 import "./App.css";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   AppShell,
@@ -15,117 +15,130 @@ import {
   UnstyledButton,
 } from "@mantine/core";
 import logo from "./logo-removebg-preview.png";
-import he from "he";
-import Timer from "./Timer";
+// import Timer from "./Timer";
 
-function Game() {
+const Game = (props) => {
+
+  let socket = props.socket
+
+  const lobbyStatus = useRef(new Map());
+  const [lobbyElements, setLobbyElements] = useState([]);
+
   const [startGame, setStartGame] = useState(false);
+  const [endedGame, setEndedGame] = useState(false);
+  const [winner, setWinner] = useState("");
+
+
+  const [room, setRoom] = useState("");
 
   const [currentQuestion, setCurrentQuestion] = useState("");
   const [answerOptions, setAnswerOptions] = useState([]);
   const [correctAnswer, setCorrectAnswer] = useState("");
   const [clicked, setClicked] = useState(false);
-  const [score, setScore] = useState(0);
 
-  const seconds = 15;
-  const [timerStarted, setTimerStarted] = useState(false);
+  // const seconds = 15;
+  // const [timerStarted, setTimerStarted] = useState(false);
 
   const { state } = useLocation();
   const { username } = state; // Read values passed on state
+  
+  const initializeGame = () => {
+    console.log("Initializing Game");
 
-  const fetchData = async () => {
-    const response = await fetch("https://opentdb.com/api.php?amount=1");
-    const data = await response.json();
-    const decodedData = decodeHtmlEntities(data);
-    const type = decodedData.results[0].type;
+    socket.emit("initialize-game", { room: room});
+    socket.emit("request-question", { room: room});
 
-    if (type === "multiple") {
-      const multipleOptions = [
-        decodedData.results[0].correct_answer,
-        decodedData.results[0].incorrect_answers[0],
-        decodedData.results[0].incorrect_answers[1],
-        decodedData.results[0].incorrect_answers[2],
-      ];
-      const shuffledOptions = shuffleArray(multipleOptions);
-      setCurrentQuestion(decodedData.results[0].question);
-      setAnswerOptions(shuffledOptions);
-      setCorrectAnswer(decodedData.results[0].correct_answer);
-    } else {
-      const booleanOptions = ["True", "False"];
-      setCurrentQuestion(decodedData.results[0].question);
-      setAnswerOptions(booleanOptions);
-      setCorrectAnswer(decodedData.results[0].correct_answer);
-    }
-
-    // Reset clicked state and selected option
-    setClicked(false);
-    setTimerStarted(true);
-  };
-
-  const decodeHtmlEntities = (obj) => {
-    if (typeof obj !== "object" || obj === null) {
-      return obj;
-    }
-    const decodedObj = {};
-    for (const [key, value] of Object.entries(obj)) {
-      decodedObj[key] = decodeHtmlEntities(value);
-      if (typeof decodedObj[key] === "string") {
-        decodedObj[key] = he.decode(decodedObj[key]);
-      }
-    }
-    return decodedObj;
-  };
-
-  const shuffleArray = (arr) => {
-    const shuffledArr = [...arr];
-    for (let i = shuffledArr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffledArr[i], shuffledArr[j]] = [shuffledArr[j], shuffledArr[i]];
-    }
-    return shuffledArr;
-  };
+    // setStartGame(true)
+  }
 
   const handleAnswerOptionClick = (answerOption) => {
     if (!clicked) {
       setClicked(true);
-
-      if (answerOption === correctAnswer) {
-        setScore(score + 10);
-      }
+      socket.emit("submit-answer", {room: room, username: username, answerOption: answerOption});
     }
-    handleTimer();
-  };
+  }
 
-  const handleTimer = () => {
-    setClicked(true);
-    setTimerStarted(false);
-    setTimeout(() => {
-      setAnswerOptions([]);
-      setCurrentQuestion("");
-      setCorrectAnswer("");
-      fetchData();
-    }, 3000);
-  };
+  socket.on("new-question", (data) => {
+    setCurrentQuestion(data.currentQuestion);
+    setAnswerOptions(data.answerOptions);
+    setCorrectAnswer(data.correctAnswer);
+    setClicked(false);
+  });
+
+  const arrangeLobby = useCallback((lobby) => {
+    console.log("arranging");
+
+    lobbyStatus.current.clear();
+    lobbyStatus.current = lobby;
+
+    // Generate cards
+    const elements = [];
+    lobby.forEach(function(value, key) {
+      if (key === username) {
+        elements.push(
+          <Card bg="#E67700" shadow="sm" radius="md">
+            <Center>
+              <Text fz="lg" color="white" fw={500}>{key}: {value}</Text>
+            </Center>
+          </Card>
+        );
+      } else {
+        elements.push(
+          <Card bg="#393f4a" shadow="sm" radius="md">
+            <Center>
+              <Text fz="lg" color="white" fw={500}>{key}: {value}</Text>
+            </Center>
+          </Card>
+        );      }
+    });
+    setLobbyElements(elements);
+  }, [username]);
 
   useEffect(() => {
-    if (startGame) {
-      setScore(0);
-      fetchData();
-    }
-  }, [startGame]);
+    socket.on("update-lobby", (data) => {
+      console.log(data.lobby)
+      arrangeLobby(new Map(JSON.parse(data.lobby)))
+    })
+  }, [arrangeLobby, socket]);
+
+  useEffect(() => {
+    socket.on("winner-found", (data) => {
+      setWinner(data.winner);
+      setStartGame(false);
+      setEndedGame(true);
+    })
+  }, [winner, socket]);
+
+  socket.on("started-game", () => {
+    setStartGame(true);
+  });
+
+  const backToLobby = () => {
+    setStartGame(false);
+    setEndedGame(false);
+    setWinner("");
+  }
+  // timer manipulation
+  // const handleTimer = () => {
+  //   setClicked(true);
+  //   setTimerStarted(false);
+  //   setTimeout(() => {
+  //     setAnswerOptions([]);
+  //     setCurrentQuestion("");
+  //     setCorrectAnswer("");
+  //     fetchData();
+  //   }, 3000);
+  // };
+  socket.on("room-code", (data) => {
+    setRoom(data);
+  });
 
   return (
     <AppShell
       padding="md"
       navbar={
         <Navbar width={{ base: 200 }} height={"100vh"} p="xs">
-          <Card bg="#393f4a" shadow="sm" radius="md">
-            <Center>
-              <Text fz="lg" color="white" fw={500}>
-                {username}: {score}
-              </Text>
-            </Center>
-          </Card>
+          {lobbyElements}
         </Navbar>
       }
       header={
@@ -137,10 +150,11 @@ function Game() {
           <Center>
             <Image width={250} src={logo} fit="contain" className="logo" />
           </Center>
+          <Text className="room-code" fz="xl" color="white" fw={500}>Room Code: {room}</Text>
         </Header>
       }
     >
-      <Center>
+      {/* <Center>
         {clicked ? null : timerStarted ? (
           <Timer
             initialTime={seconds}
@@ -148,9 +162,10 @@ function Game() {
             clicked={clicked}
           />
         ) : null}
-      </Center>
+      </Center> */}
       <div className="centered">
-        {startGame ? (
+        {startGame ?
+        (
           <Card className="question-card" shadow="sm" radius="md">
             <Center>
               <Text c="white" fz="xl" fw={500} ta="center">
@@ -192,11 +207,34 @@ function Game() {
               ))}
             </SimpleGrid>
           </Card>
-        ) : (
-          <Button size="xl" onClick={() => setStartGame(true)}>
-            Start Game
-          </Button>
-        )}
+        )
+        :
+          endedGame ? 
+            (
+              <Center>
+                <SimpleGrid>
+                  <div>
+                    <Text c="white" fz="xl" fw={500} ta="center">
+                      The winner is {winner}!
+                    </Text>
+                  </div>
+                  <div>
+                    <Button size="xl" onClick={backToLobby}>
+                      Back to Lobby
+                    </Button>
+                  </div>
+                </SimpleGrid>
+                
+                
+              </Center>
+            ) 
+            :(
+              <Button size="xl" onClick={initializeGame}>
+                Start Game
+              </Button>
+            )
+        }
+          
       </div>
     </AppShell>
   );
