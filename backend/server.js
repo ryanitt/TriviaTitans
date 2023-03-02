@@ -58,6 +58,7 @@ io.on("connection", (socket) => {
       activeRooms.get(data.room).set(data.username, 0);
       console.log(`${data.username} has connected`);
 
+      socket.emit("assign-host", true);
       socket.emit("player-connection", playerIndex);
       socket.broadcast.to(data.room).emit("player-connection", playerIndex);
       socket.emit("room-code", data.room);
