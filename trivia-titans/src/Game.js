@@ -22,6 +22,7 @@ const Game = (props) => {
 
   const lobbyStatus = useRef(new Map());
   const [lobbyElements, setLobbyElements] = useState([]);
+  const [isHost, setIsHost] = useState(false);
 
   const [startGame, setStartGame] = useState(false);
   const [endedGame, setEndedGame] = useState(false);
@@ -58,6 +59,10 @@ const Game = (props) => {
       });
     }
   };
+
+  socket.on("assign-host", (data) => {
+    setIsHost(data);
+  });
 
   socket.on("new-question", (data) => {
     setCurrentQuestion(data.currentQuestion);
@@ -244,10 +249,14 @@ const Game = (props) => {
               </div>
             </SimpleGrid>
           </Center>
-        ) : (
+        ) : isHost ? (
           <Button size="xl" onClick={initializeGame}>
             Start Game
           </Button>
+        ) : (
+          <Text c="white" fz="xl" fw={500} ta="center">
+            Waiting for host to start game...
+          </Text>
         )}
       </div>
     </AppShell>
