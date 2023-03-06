@@ -20,31 +20,27 @@ import Timer from "./Timer";
 const Game = (props) => {
   let socket = props.socket;
 
+  // useStates for the game
   const lobbyStatus = useRef(new Map());
   const [lobbyElements, setLobbyElements] = useState([]);
+  const [room, setRoom] = useState("");
   const [isHost, setIsHost] = useState(false);
-
   const [startGame, setStartGame] = useState(false);
   const [endedGame, setEndedGame] = useState(false);
   const [winner, setWinner] = useState("");
-
-  const [room, setRoom] = useState("");
-
   const [currentQuestion, setCurrentQuestion] = useState("");
   const [answerOptions, setAnswerOptions] = useState([]);
   const [correctAnswer, setCorrectAnswer] = useState("");
   const [clicked, setClicked] = useState(false);
-
   const [timerStarted, setTimerStarted] = useState(false);
-
-  const { state } = useLocation();
-  const { username } = state; // Read values passed on state
-
   const [seconds, setSeconds] = useState(15);
+  const { state } = useLocation();
+  const { username } = state;
+
+  /********* Component functions /*********/
 
   const initializeGame = () => {
     console.log("Initializing Game");
-
     socket.emit("initialize-game", { room: room });
     socket.emit("request-question", { room: room });
   };
@@ -60,17 +56,24 @@ const Game = (props) => {
     }
   };
 
-  socket.on("assign-host", (data) => {
-    setIsHost(data);
-  });
+  // timer manipulation
+  const handleTimer = () => {
+    setClicked(true);
+    setTimerStarted(false);
+    setTimeout(() => {
+      setAnswerOptions([]);
+      setCurrentQuestion("");
+      setCorrectAnswer("");
+      socket.emit("request-question", { room: room });
+      setTimerStarted(true);
+    }, 3000);
+  };
 
-  socket.on("new-question", (data) => {
-    setCurrentQuestion(data.currentQuestion);
-    setAnswerOptions(data.answerOptions);
-    setCorrectAnswer(data.correctAnswer);
-    setSeconds(data.time);
-    setClicked(false);
-  });
+  const backToLobby = () => {
+    setStartGame(false);
+    setEndedGame(false);
+    setWinner("");
+  };
 
   const arrangeLobby = useCallback(
     (lobby) => {
@@ -115,6 +118,29 @@ const Game = (props) => {
     [username]
   );
 
+  /********* Socket Events /*********/
+
+  socket.on("room-code", (data) => {
+    setRoom(data);
+  });
+
+  socket.on("assign-host", (data) => {
+    setIsHost(data);
+  });
+
+  socket.on("started-game", () => {
+    setStartGame(true);
+    setTimerStarted(true);
+  });
+
+  socket.on("new-question", (data) => {
+    setCurrentQuestion(data.currentQuestion);
+    setAnswerOptions(data.answerOptions);
+    setCorrectAnswer(data.correctAnswer);
+    setSeconds(data.time);
+    setClicked(false);
+  });
+
   useEffect(() => {
     socket.on("update-lobby", (data) => {
       console.log(data.lobby);
@@ -130,34 +156,6 @@ const Game = (props) => {
       setTimerStarted(false);
     });
   }, [winner, socket]);
-
-  socket.on("started-game", () => {
-    setStartGame(true);
-    setTimerStarted(true);
-  });
-
-  const backToLobby = () => {
-    setStartGame(false);
-    setEndedGame(false);
-    setWinner("");
-  };
-
-  // timer manipulation
-  const handleTimer = () => {
-    setClicked(true);
-    setTimerStarted(false);
-    setTimeout(() => {
-      setAnswerOptions([]);
-      setCurrentQuestion("");
-      setCorrectAnswer("");
-      socket.emit("request-question", { room: room });
-      setTimerStarted(true);
-    }, 3000);
-  };
-
-  socket.on("room-code", (data) => {
-    setRoom(data);
-  });
 
   return (
     <AppShell

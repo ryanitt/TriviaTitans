@@ -1,7 +1,6 @@
 const express = require("express");
 const socketIo = require("socket.io");
 const http = require("http");
-const e = require("express");
 const he = require("he");
 
 const fetch = require("node-fetch");
@@ -29,7 +28,7 @@ let activeRooms = new Map();
 const sendLobbyToRoom = (room) => {
   // Check if someone won
   activeRooms.get(room).forEach(function (value, key) {
-    if (value >= 20) {
+    if (value >= 100) {
       io.in(room).emit("winner-found", { winner: key });
       activeRooms.get(room).forEach(function (value, key) {
         activeRooms.get(room).set(key, 0);
@@ -98,9 +97,9 @@ io.on("connection", (socket) => {
     }
   });
 
-  // Trivia Game Logic
+  // Trivia Game Logic //
 
-  // fetching data from the trivia db
+  // Fetching data from the trivia db
   const fetchData = async () => {
     const response = await fetch("https://opentdb.com/api.php?amount=1");
 
@@ -125,10 +124,6 @@ io.on("connection", (socket) => {
       answerOptions = booleanOptions;
       correctAnswer = decodedData.results[0].correct_answer;
     }
-
-    // Reset clicked state and selected option
-    // setClicked(false);
-    // setTimerStarted(true);
   };
 
   // Decode special http characters
@@ -156,7 +151,7 @@ io.on("connection", (socket) => {
     return shuffledArr;
   };
 
-  // Trivia Game Communication
+  // User clicks the "Start Game" button, only accesible to the host
   socket.on("initialize-game", (data) => {
     io.in(data.room).emit("started-game", {});
     if (!totalPlayersSet) {
@@ -166,6 +161,7 @@ io.on("connection", (socket) => {
     sendLobbyToRoom(data.room);
   });
 
+  // User requests a new question from the database
   socket.on("request-question", async (data) => {
     console.log("Requesting Question");
     await fetchData();
@@ -178,6 +174,8 @@ io.on("connection", (socket) => {
     });
   });
 
+  // User submits an answer to the server
+  // TODO: adjust this function to increment the score based on how fast the user answered
   socket.on("submit-answer", async (data) => {
     answersRecieved++;
 
@@ -195,6 +193,7 @@ io.on("connection", (socket) => {
       `answersRecieved: ${answersRecieved}, totalPlayers: ${totalPlayers}, correctlyAnswered: ${correctlyAnswered}, data.answerOption: ${data.answerOption}, correctAnswer: ${correctAnswer}`
     );
 
+    // If all users answer the question
     if (answersRecieved >= totalPlayers) {
       await fetchData();
       answersRecieved = 0;
