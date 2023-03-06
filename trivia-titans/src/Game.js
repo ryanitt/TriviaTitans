@@ -15,19 +15,18 @@ import {
   UnstyledButton,
 } from "@mantine/core";
 import logo from "./logo-removebg-preview.png";
-// import Timer from "./Timer";
+import Timer from "./Timer";
 
 const Game = (props) => {
-
-  let socket = props.socket
+  let socket = props.socket;
 
   const lobbyStatus = useRef(new Map());
   const [lobbyElements, setLobbyElements] = useState([]);
+  const [isHost, setIsHost] = useState(false);
 
   const [startGame, setStartGame] = useState(false);
   const [endedGame, setEndedGame] = useState(false);
   const [winner, setWinner] = useState("");
-
 
   const [room, setRoom] = useState("");
 
@@ -36,69 +35,91 @@ const Game = (props) => {
   const [correctAnswer, setCorrectAnswer] = useState("");
   const [clicked, setClicked] = useState(false);
 
-  // const seconds = 15;
-  // const [timerStarted, setTimerStarted] = useState(false);
+  const [timerStarted, setTimerStarted] = useState(false);
 
   const { state } = useLocation();
   const { username } = state; // Read values passed on state
-  
+
+  const [seconds, setSeconds] = useState(15);
+
   const initializeGame = () => {
     console.log("Initializing Game");
 
-    socket.emit("initialize-game", { room: room});
-    socket.emit("request-question", { room: room});
-
-    // setStartGame(true)
-  }
+    socket.emit("initialize-game", { room: room });
+    socket.emit("request-question", { room: room });
+  };
 
   const handleAnswerOptionClick = (answerOption) => {
     if (!clicked) {
       setClicked(true);
-      socket.emit("submit-answer", {room: room, username: username, answerOption: answerOption});
+      socket.emit("submit-answer", {
+        room: room,
+        username: username,
+        answerOption: answerOption,
+      });
     }
-  }
+  };
+
+  socket.on("assign-host", (data) => {
+    setIsHost(data);
+  });
 
   socket.on("new-question", (data) => {
     setCurrentQuestion(data.currentQuestion);
     setAnswerOptions(data.answerOptions);
     setCorrectAnswer(data.correctAnswer);
+    setSeconds(data.time);
     setClicked(false);
   });
 
-  const arrangeLobby = useCallback((lobby) => {
-    console.log("arranging");
+  const arrangeLobby = useCallback(
+    (lobby) => {
+      console.log("arranging");
 
-    lobbyStatus.current.clear();
-    lobbyStatus.current = lobby;
+      lobbyStatus.current.clear();
+      lobbyStatus.current = lobby;
 
-    // Generate cards
-    const elements = [];
-    lobby.forEach(function(value, key) {
-      if (key === username) {
-        elements.push(
-          <Card bg="#E67700" shadow="sm" radius="md">
-            <Center>
-              <Text fz="lg" color="white" fw={500}>{key}: {value}</Text>
-            </Center>
-          </Card>
-        );
-      } else {
-        elements.push(
-          <Card bg="#393f4a" shadow="sm" radius="md">
-            <Center>
-              <Text fz="lg" color="white" fw={500}>{key}: {value}</Text>
-            </Center>
-          </Card>
-        );      }
-    });
-    setLobbyElements(elements);
-  }, [username]);
+      // Generate cards
+      const elements = [];
+      lobby.forEach(function (value, key) {
+        if (key === username) {
+          elements.push(
+            <>
+              <Card bg="#E67700" shadow="sm" radius="md">
+                <Center>
+                  <Text fz="lg" color="white" fw={500}>
+                    {key}: {value}
+                  </Text>
+                </Center>
+              </Card>
+              <Space h="sm" />
+            </>
+          );
+        } else {
+          elements.push(
+            <>
+              <Card bg="#393f4a" shadow="sm" radius="md">
+                <Center>
+                  <Text fz="lg" color="white" fw={500}>
+                    {key}: {value}
+                  </Text>
+                </Center>
+              </Card>
+              <Space h="sm" />
+            </>
+          );
+        }
+      });
+      setLobbyElements(elements);
+    },
+    [username]
+  );
 
   useEffect(() => {
     socket.on("update-lobby", (data) => {
-      console.log(data.lobby)
-      arrangeLobby(new Map(JSON.parse(data.lobby)))
-    })
+      console.log(data.lobby);
+      arrangeLobby(new Map(JSON.parse(data.lobby)));
+    });
   }, [arrangeLobby, socket]);
 
   useEffect(() => {
@@ -106,29 +127,34 @@ const Game = (props) => {
       setWinner(data.winner);
       setStartGame(false);
       setEndedGame(true);
-    })
+      setTimerStarted(false);
+    });
   }, [winner, socket]);
 
   socket.on("started-game", () => {
     setStartGame(true);
+    setTimerStarted(true);
   });
 
   const backToLobby = () => {
     setStartGame(false);
     setEndedGame(false);
     setWinner("");
-  }
+  };
+
   // timer manipulation
-  // const handleTimer = () => {
-  //   setClicked(true);
-  //   setTimerStarted(false);
-  //   setTimeout(() => {
-  //     setAnswerOptions([]);
-  //     setCurrentQuestion("");
-  //     setCorrectAnswer("");
-  //     fetchData();
-  //   }, 3000);
-  // };
+  const handleTimer = () => {
+    setClicked(true);
+    setTimerStarted(false);
+    setTimeout(() => {
+      setAnswerOptions([]);
+      setCurrentQuestion("");
+      setCorrectAnswer("");
+      socket.emit("request-question", { room: room });
+      setTimerStarted(true);
+    }, 3000);
+  };
+
   socket.on("room-code", (data) => {
     setRoom(data);
   });
@@ -150,11 +176,13 @@ const Game = (props) => {
           <Center>
             <Image width={250} src={logo} fit="contain" className="logo" />
           </Center>
-          <Text className="room-code" fz="xl" color="white" fw={500}>Room Code: {room}</Text>
+          <Text className="room-code" fz="xl" color="white" fw={500}>
+            Room Code: {room}
+          </Text>
         </Header>
       }
     >
-      {/* <Center>
+      <Center>
         {clicked ? null : timerStarted ? (
           <Timer
             initialTime={seconds}
@@ -162,10 +190,9 @@ const Game = (props) => {
             clicked={clicked}
           />
         ) : null}
-      </Center> */}
+      </Center>
       <div className="centered">
-        {startGame ?
-        (
+        {startGame ? (
           <Card className="question-card" shadow="sm" radius="md">
             <Center>
               <Text c="white" fz="xl" fw={500} ta="center">
@@ -207,37 +234,33 @@ const Game = (props) => {
               ))}
             </SimpleGrid>
           </Card>
-        )
-        :
-          endedGame ? 
-            (
-              <Center>
-                <SimpleGrid>
-                  <div>
-                    <Text c="white" fz="xl" fw={500} ta="center">
-                      The winner is {winner}!
-                    </Text>
-                  </div>
-                  <div>
-                    <Button size="xl" onClick={backToLobby}>
-                      Back to Lobby
-                    </Button>
-                  </div>
-                </SimpleGrid>
-                
-                
-              </Center>
-            ) 
-            :(
-              <Button size="xl" onClick={initializeGame}>
-                Start Game
-              </Button>
-            )
-        }
-          
+        ) : endedGame ? (
+          <Center>
+            <SimpleGrid>
+              <div>
+                <Text c="white" fz="xl" fw={500} ta="center">
+                  The winner is {winner}!
+                </Text>
+              </div>
+              <div>
+                <Button size="xl" onClick={backToLobby}>
+                  Back to Lobby
+                </Button>
+              </div>
+            </SimpleGrid>
+          </Center>
+        ) : isHost ? (
+          <Button size="xl" onClick={initializeGame}>
+            Start Game
+          </Button>
+        ) : (
+          <Text c="white" fz="xl" fw={500} ta="center">
+            Waiting for host to start game...
+          </Text>
+        )}
       </div>
     </AppShell>
   );
-}
+};
 
 export default Game;

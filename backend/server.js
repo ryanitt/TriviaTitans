@@ -2,9 +2,9 @@ const express = require("express");
 const socketIo = require("socket.io");
 const http = require("http");
 const e = require("express");
-const he = require("he")
+const he = require("he");
 
-const fetch = require('node-fetch');
+const fetch = require("node-fetch");
 
 const PORT = process.env.PORT || 8080;
 const app = express();
@@ -19,7 +19,7 @@ var answersRecieved = 0;
 var totalPlayers = 0;
 var totalPlayersSet = false;
 
-var currentQuestion= "";
+var currentQuestion = "";
 var answerOptions = [];
 var correctAnswer = "";
 
@@ -30,9 +30,7 @@ const sendLobbyToRoom = (room) => {
   // Check if someone won
   activeRooms.get(room).forEach(function (value, key) {
     if (value >= 20) {
-
-      io.in(room)
-        .emit("winner-found", { winner: key });
+      io.in(room).emit("winner-found", { winner: key });
       activeRooms.get(room).forEach(function (value, key) {
         activeRooms.get(room).set(key, 0);
       });
@@ -41,8 +39,7 @@ const sendLobbyToRoom = (room) => {
 
   let serializableMap = JSON.stringify(Array.from(activeRooms.get(room)));
 
-  io.in(room)
-  .emit("update-lobby", {lobby: serializableMap});
+  io.in(room).emit("update-lobby", { lobby: serializableMap });
 };
 
 //in case server and client run on different urls
@@ -61,6 +58,7 @@ io.on("connection", (socket) => {
       activeRooms.get(data.room).set(data.username, 0);
       console.log(`${data.username} has connected`);
 
+      socket.emit("assign-host", true);
       socket.emit("player-connection", playerIndex);
       socket.broadcast.to(data.room).emit("player-connection", playerIndex);
       socket.emit("room-code", data.room);
@@ -84,7 +82,7 @@ io.on("connection", (socket) => {
         socket.join(data.room);
         connections[playerIndex] = false;
         activeRooms.get(data.room).set(data.username, 0);
-        console.log(activeRooms)
+        console.log(activeRooms);
         // tell everyone which player just connected
         console.log(`${data.username} has joined ${data.room}`);
 
@@ -94,15 +92,12 @@ io.on("connection", (socket) => {
         socket.broadcast.to(data.room).emit("player-connection", playerIndex);
         socket.emit("room-code", data.room);
         sendLobbyToRoom(data.room);
-
-
       } else {
         socket.emit("invalid-code", true);
       }
     }
   });
 
-  
   // Trivia Game Logic
 
   // fetching data from the trivia db
@@ -163,18 +158,24 @@ io.on("connection", (socket) => {
 
   // Trivia Game Communication
   socket.on("initialize-game", (data) => {
-    io.in(data.room)
-    .emit("started-game", {});
-    if(!totalPlayersSet) {
+    io.in(data.room).emit("started-game", {});
+    if (!totalPlayersSet) {
       totalPlayers = activeRooms.get(data.room).size;
       totalPlayersSet = true;
     }
     sendLobbyToRoom(data.room);
   });
+
   socket.on("request-question", async (data) => {
-    await fetchData()
-    io.in(data.room)
-      .emit("new-question", { currentQuestion: currentQuestion, answerOptions: answerOptions, correctAnswer: correctAnswer });
+    console.log("Requesting Question");
+    await fetchData();
+    answersRecieved = 0;
+    io.in(data.room).emit("new-question", {
+      currentQuestion: currentQuestion,
+      answerOptions: answerOptions,
+      correctAnswer: correctAnswer,
+      time: 15,
+    });
   });
 
   socket.on("submit-answer", async (data) => {
@@ -182,20 +183,29 @@ io.on("connection", (socket) => {
 
     var correctlyAnswered = data.answerOption === correctAnswer;
     if (correctlyAnswered) {
-      console.log("Modifying Score: ", activeRooms.get(data.room))
-      activeRooms.get(data.room).set(data.username, activeRooms.get(data.room).get(data.username) + 10);
-      console.log("Modified Score: ", activeRooms.get(data.room))
-
+      console.log("Modifying Score: ", activeRooms.get(data.room));
+      activeRooms
+        .get(data.room)
+        .set(data.username, activeRooms.get(data.room).get(data.username) + 10);
+      console.log("Modified Score: ", activeRooms.get(data.room));
     }
     sendLobbyToRoom(data.room);
 
-    console.log(`answersRecieved: ${answersRecieved}, totalPlayers: ${totalPlayers}, correctlyAnswered: ${correctlyAnswered}, data.answerOption: ${data.answerOption}, correctAnswer: ${correctAnswer}`)
+    console.log(
+      `answersRecieved: ${answersRecieved}, totalPlayers: ${totalPlayers}, correctlyAnswered: ${correctlyAnswered}, data.answerOption: ${data.answerOption}, correctAnswer: ${correctAnswer}`
+    );
 
-    if(answersRecieved >= totalPlayers) {
+    if (answersRecieved >= totalPlayers) {
       await fetchData();
       answersRecieved = 0;
-      io.in(data.room)
-        .emit("new-question", { currentQuestion: currentQuestion, answerOptions: answerOptions, correctAnswer: correctAnswer });
+      setTimeout(() => {
+        io.in(data.room).emit("new-question", {
+          currentQuestion: currentQuestion,
+          answerOptions: answerOptions,
+          correctAnswer: correctAnswer,
+          time: 15,
+        });
+      }, 3000);
       return;
     }
   });

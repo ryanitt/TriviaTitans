@@ -6,7 +6,7 @@ import { useState, useEffect, useRef } from "react";
 
 const App = (props) => {
   const navigate = useNavigate();
-  
+
   let appSocket = props.socket;
 
   const [username, setUsername] = useState("");
@@ -23,8 +23,11 @@ const App = (props) => {
   const useJoinGame = () => {
     if (roomRef.current !== "" && !invalidCode && !limitReached) {
       // TODO: if its an invalid code dont send this emit
-      appSocket.emit("join-room", { username: usernameRef.current, room: roomRef.current, newGame: false });
-    
+      appSocket.emit("join-room", {
+        username: usernameRef.current,
+        room: roomRef.current,
+        newGame: false,
+      });
     } else {
       console.log("Invalid Code");
     }
@@ -34,14 +37,18 @@ const App = (props) => {
     let generatedRoom = Math.floor(1000 + Math.random() * 9000).toString();
 
     roomRef.current = generatedRoom;
-    appSocket.emit("join-room", { username: usernameRef.current, room: roomRef.current, newGame: true });
+    appSocket.emit("join-room", {
+      username: usernameRef.current,
+      room: roomRef.current,
+      newGame: true,
+    });
 
     navigate("/game", { state: { username: usernameRef.current } });
   };
 
   useEffect(() => {
     appSocket.on("join-success", (data) => {
-      if (data) navigate("/game", { state: { username: usernameRef.current }});
+      if (data) navigate("/game", { state: { username: usernameRef.current } });
     });
     appSocket.on("limit-reached", (data) => {
       if (data) setLimitReached(true);
@@ -67,7 +74,7 @@ const App = (props) => {
       <img src={logo} className="App-logo" alt="logo" />
       <Text>Trivia Titans</Text>
       <Space h="lg" />
-      
+
       <Center>
         <Button
           size="lg"
@@ -124,6 +131,6 @@ const App = (props) => {
       </Center>
     </header>
   );
-}
+};
 
 export default App;
