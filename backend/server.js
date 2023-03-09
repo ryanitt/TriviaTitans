@@ -14,16 +14,6 @@ const io = socketIo(server, {
   },
 });
 
-// let gameVariables = {
-//   players: new Map(),
-//   answerOptions: [],
-//   answersRecieved: 0,
-//   totalPlayers: 0,
-//   totalPlayersSet: false,
-//   currentQuestion: "",
-//   correctAnswer: "",
-// };
-
 // Room Management
 let activeRooms = new Map();
 
