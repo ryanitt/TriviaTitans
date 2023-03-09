@@ -5,6 +5,8 @@ const he = require("he");
 
 const fetch = require("node-fetch");
 
+const amqp = require('amqplib');
+
 const PORT = process.env.PORT || 8080;
 const app = express();
 const server = http.createServer(app);
@@ -13,6 +15,30 @@ const io = socketIo(server, {
     origin: "http://localhost:3000",
   },
 });
+
+// RabbitMQ Message Queue connection
+
+const exchangeName = 'my-exchange';
+
+async function initializeMQ() {
+  const conn = await amqp.connect(process.env.RABBITMQ_HOST);
+  const channel = await conn.createChannel();
+
+  await channel.assertExchange(exchangeName, 'fanout', { durable: false });
+
+  const { queue } = await channel.assertQueue('', { exclusive: true });
+  await channel.bindQueue(queue, exchangeName, '');
+
+  channel.consume(queue, (msg) => {
+    console.log("message recieved: " + msg.content.toString());
+    activeRooms = new Map(JSON.parse(msg));
+    console.log("New Active Rooms: " + activeRooms);
+  }, { noAck: true });
+
+  return channel;
+}
+
+const mqChannel = initializeMQ();
 
 // Room Management
 let activeRooms = new Map();
@@ -40,11 +66,13 @@ const sendLobbyToRoom = (room) => {
       });
     }
   });
+  mqChannel.publish(exchangeName, '', Buffer.from(JSON.stringify(activeRooms)));
 
   // Update lobby after checking for winner
   let serializableMap = JSON.stringify(
     Array.from(activeRooms.get(room).players)
   );
+
   io.in(room).emit("update-lobby", { lobby: serializableMap, room: room });
 };
 
@@ -73,6 +101,7 @@ io.on("connection", (socket) => {
       socket.emit("player-connection", playerIndex);
       socket.broadcast.to(data.room).emit("player-connection", playerIndex);
       socket.emit("room-code", data.room);
+
       sendLobbyToRoom(data.room);
     } else {
       // check if the code exists
@@ -232,7 +261,7 @@ io.on("connection", (socket) => {
     activeRooms.set(data.room, gameVars);
     console.log(`Player ${data.username} has left`);
     sendLobbyToRoom(data.room);
-  });
+});
 
   // if host leaves, delete the room
   socket.on("host-left", (data) => {
