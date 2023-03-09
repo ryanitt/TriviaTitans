@@ -73,7 +73,6 @@ io.on("connection", (socket) => {
       socket.emit("player-connection", playerIndex);
       socket.broadcast.to(data.room).emit("player-connection", playerIndex);
       socket.emit("room-code", data.room);
-
       sendLobbyToRoom(data.room);
     } else {
       // check if the code exists
@@ -224,6 +223,22 @@ io.on("connection", (socket) => {
       return;
     }
     activeRooms.set(data.room, gameVars);
+  });
+
+  socket.on("leave-room", (data) => {
+    const gameVars = activeRooms.get(data.room);
+    gameVars.players.delete(data.username);
+    gameVars.totalPlayers--;
+    activeRooms.set(data.room, gameVars);
+    console.log(`Player ${data.username} has left`);
+    sendLobbyToRoom(data.room);
+  });
+
+  // if host leaves, delete the room
+  socket.on("host-left", (data) => {
+    activeRooms.delete(data.room);
+    console.log(`Host left the game. Room ${data.room} has been deleted`);
+    io.to(data.room).emit("room-deleted", {});
   });
 });
 

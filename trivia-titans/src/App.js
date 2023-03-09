@@ -1,11 +1,20 @@
 import logo from "./logo.svg";
 import "./App.css";
-import { useNavigate } from "react-router-dom";
-import { Button, Center, Modal, Space, Text, TextInput } from "@mantine/core";
+import { useLocation, useNavigate } from "react-router-dom";
+import {
+  Alert,
+  Button,
+  Center,
+  Modal,
+  Space,
+  Text,
+  TextInput,
+} from "@mantine/core";
 import { useState, useEffect, useRef } from "react";
 
 const App = (props) => {
   const navigate = useNavigate();
+  const location = useLocation();
   let appSocket = props.socket;
 
   const [username, setUsername] = useState("");
@@ -16,6 +25,7 @@ const App = (props) => {
   const [invalidCode, setInvalidCode] = useState(false);
   const [isNewGameModalOpen, setIsNewGameModalOpen] = useState(false);
   const [isJoinGameModalOpen, setIsJoinGameModalOpen] = useState(false);
+  const [showAlert, setShowAlert] = useState(false);
 
   const useJoinGame = () => {
     if (roomRef.current !== "" && !invalidCode && !limitReached) {
@@ -59,6 +69,15 @@ const App = (props) => {
   }, [appSocket, navigate]);
 
   useEffect(() => {
+    if (location.state) {
+      setShowAlert(true);
+      setTimeout(() => {
+        setShowAlert(false);
+      }, 5000);
+    }
+  }, [location]);
+
+  useEffect(() => {
     usernameRef.current = username;
   }, [username]);
 
@@ -68,6 +87,11 @@ const App = (props) => {
 
   return (
     <header className="App-header">
+      {showAlert && (
+        <Alert title="Bummer!" color="red">
+          The host has left the game. The room has been closed.
+        </Alert>
+      )}
       <img src={logo} className="App-logo" alt="logo" />
       <Text>Trivia Titans</Text>
       <Space h="lg" />

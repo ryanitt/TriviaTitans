@@ -1,6 +1,6 @@
 import "./App.css";
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   AppShell,
   Button,
@@ -21,6 +21,7 @@ const Game = (props) => {
   let socket = props.socket;
 
   // useStates for the game
+  const navigate = useNavigate();
   const lobbyStatus = useRef(new Map());
   const [lobbyElements, setLobbyElements] = useState([]);
   const [room, setRoom] = useState("");
@@ -73,6 +74,14 @@ const Game = (props) => {
     setStartGame(false);
     setEndedGame(false);
     setWinner("");
+  };
+
+  const handleExit = () => {
+    if (isHost) {
+      socket.emit("host-left", { room: room });
+    } else {
+      socket.emit("leave-room", { room: room, username: username });
+    }
   };
 
   const arrangeLobby = useCallback(
@@ -141,6 +150,10 @@ const Game = (props) => {
     setClicked(false);
   });
 
+  socket.on("room-deleted", () => {
+    navigate("/", { state: isHost ? false : true });
+  });
+
   useEffect(() => {
     socket.on("update-lobby", (data) => {
       console.log(data.lobby);
@@ -167,7 +180,13 @@ const Game = (props) => {
       }
       header={
         <Header height={70}>
-          <Button size="lg" component={Link} to="/" className="exit">
+          <Button
+            size="lg"
+            component={Link}
+            to="/"
+            className="exit"
+            onClick={handleExit}
+          >
             Exit
           </Button>
 
