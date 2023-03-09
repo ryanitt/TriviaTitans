@@ -9,7 +9,7 @@ import { io } from "socket.io-client";
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 
-const socket = io.connect("http://localhost:49160");
+const socket = io.connect("http://localhost:8080");
 
 root.render(
   <MantineProvider
