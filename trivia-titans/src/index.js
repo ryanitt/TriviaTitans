@@ -22,7 +22,6 @@ root.render(
         <Route exact path="/" element={<App socket={socket} />} />
         <Route path="/game" element={<Game socket={socket} />} />
       </Routes>
-      --
     </HashRouter>
   </MantineProvider>
 );
