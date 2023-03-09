@@ -6,17 +6,14 @@ import { useState, useEffect, useRef } from "react";
 
 const App = (props) => {
   const navigate = useNavigate();
-
   let appSocket = props.socket;
 
   const [username, setUsername] = useState("");
   const usernameRef = useRef("");
   const [room, setRoom] = useState("");
   const roomRef = useRef("");
-
   const [limitReached, setLimitReached] = useState(false);
   const [invalidCode, setInvalidCode] = useState(false);
-
   const [isNewGameModalOpen, setIsNewGameModalOpen] = useState(false);
   const [isJoinGameModalOpen, setIsJoinGameModalOpen] = useState(false);
 

@@ -1,7 +1,6 @@
 const express = require("express");
 const socketIo = require("socket.io");
 const http = require("http");
-const e = require("express");
 const he = require("he");
 
 const fetch = require("node-fetch");
@@ -15,32 +14,46 @@ const io = socketIo(server, {
   },
 });
 
-var answersRecieved = 0;
-var totalPlayers = 0;
-var totalPlayersSet = false;
-
-var currentQuestion = "";
-var answerOptions = [];
-var correctAnswer = "";
-
 // Room Management
 let activeRooms = new Map();
 
+function createRoom(roomCode) {
+  let gameVariables = {
+    players: new Map(),
+    answerOptions: [],
+    answersRecieved: 0,
+    totalPlayers: 0,
+    totalPlayersSet: false,
+    currentQuestion: "",
+    correctAnswer: "",
+  };
+  activeRooms.set(roomCode, gameVariables);
+}
+
 const sendLobbyToRoom = (room) => {
   // Check if someone won
-  activeRooms.get(room).forEach(function (value, key) {
+  activeRooms.get(room).players.forEach(function (value, key) {
     if (value >= 20) {
       io.in(room).emit("winner-found", { winner: key });
-      activeRooms.get(room).forEach(function (value, key) {
-        activeRooms.get(room).set(key, 0);
+      activeRooms.get(room).players.forEach(function (value, key) {
+        activeRooms.get(room).players.set(key, 0);
       });
     }
   });
 
-  let serializableMap = JSON.stringify(Array.from(activeRooms.get(room)));
-
-  io.in(room).emit("update-lobby", { lobby: serializableMap });
+  // Update lobby after checking for winner
+  let serializableMap = JSON.stringify(
+    Array.from(activeRooms.get(room).players)
+  );
+  io.in(room).emit("update-lobby", { lobby: serializableMap, room: room });
 };
+
+function handleNewPlayer(room, username) {
+  const gameVars = activeRooms.get(room);
+  activeRooms.get(room).players.set(username, 0);
+  gameVars.totalPlayers++;
+  activeRooms.set(room, gameVars);
+}
 
 //in case server and client run on different urls
 let connections = [null, null, null, null, null];
@@ -53,11 +66,9 @@ io.on("connection", (socket) => {
       // this is player 1 - mark that dude
       socket.join(data.room);
       console.log("New Game:", data.room);
-
-      activeRooms.set(data.room, new Map());
-      activeRooms.get(data.room).set(data.username, 0);
-      console.log(`${data.username} has connected`);
-
+      createRoom(data.room);
+      handleNewPlayer(data.room, data.username);
+      console.log(`${data.username} has connected to ${data.room}`);
       socket.emit("assign-host", true);
       socket.emit("player-connection", playerIndex);
       socket.broadcast.to(data.room).emit("player-connection", playerIndex);
@@ -81,8 +92,7 @@ io.on("connection", (socket) => {
         }
         socket.join(data.room);
         connections[playerIndex] = false;
-        activeRooms.get(data.room).set(data.username, 0);
-        console.log(activeRooms);
+        handleNewPlayer(data.room, data.username);
         // tell everyone which player just connected
         console.log(`${data.username} has joined ${data.room}`);
 
@@ -98,15 +108,17 @@ io.on("connection", (socket) => {
     }
   });
 
-  // Trivia Game Logic
+  // Trivia Game Logic //
 
-  // fetching data from the trivia db
-  const fetchData = async () => {
+  // Fetching data from the trivia db
+  const fetchData = async (room) => {
     const response = await fetch("https://opentdb.com/api.php?amount=1");
 
     const data = await response.json();
     const decodedData = decodeHtmlEntities(data);
     const type = decodedData.results[0].type;
+
+    const gameVars = activeRooms.get(room);
 
     if (type === "multiple") {
       const multipleOptions = [
@@ -116,19 +128,16 @@ io.on("connection", (socket) => {
         decodedData.results[0].incorrect_answers[2],
       ];
       const shuffledOptions = shuffleArray(multipleOptions);
-      currentQuestion = decodedData.results[0].question;
-      answerOptions = shuffledOptions;
-      correctAnswer = decodedData.results[0].correct_answer;
+      gameVars.currentQuestion = decodedData.results[0].question;
+      gameVars.answerOptions = shuffledOptions;
+      gameVars.correctAnswer = decodedData.results[0].correct_answer;
     } else {
       const booleanOptions = ["True", "False"];
-      currentQuestion = decodedData.results[0].question;
-      answerOptions = booleanOptions;
-      correctAnswer = decodedData.results[0].correct_answer;
+      gameVars.currentQuestion = decodedData.results[0].question;
+      gameVars.answerOptions = booleanOptions;
+      gameVars.correctAnswer = decodedData.results[0].correct_answer;
     }
-
-    // Reset clicked state and selected option
-    // setClicked(false);
-    // setTimerStarted(true);
+    activeRooms.set(room, gameVars);
   };
 
   // Decode special http characters
@@ -156,58 +165,65 @@ io.on("connection", (socket) => {
     return shuffledArr;
   };
 
-  // Trivia Game Communication
+  // User clicks the "Start Game" button, only accesible to the host
   socket.on("initialize-game", (data) => {
     io.in(data.room).emit("started-game", {});
-    if (!totalPlayersSet) {
-      totalPlayers = activeRooms.get(data.room).size;
-      totalPlayersSet = true;
+    if (!activeRooms.get(data.room).totalPlayersSet) {
+      activeRooms.get(data.room).totalPlayersSet = true;
     }
     sendLobbyToRoom(data.room);
   });
 
+  // User requests a new question from the database
   socket.on("request-question", async (data) => {
     console.log("Requesting Question");
-    await fetchData();
-    answersRecieved = 0;
+    await fetchData(data.room);
+    const gameVars = activeRooms.get(data.room);
+    gameVars.answersRecieved = 0;
     io.in(data.room).emit("new-question", {
-      currentQuestion: currentQuestion,
-      answerOptions: answerOptions,
-      correctAnswer: correctAnswer,
+      currentQuestion: gameVars.currentQuestion,
+      answerOptions: gameVars.answerOptions,
+      correctAnswer: gameVars.correctAnswer,
       time: 15,
     });
+    activeRooms.set(data.room, gameVars);
   });
 
+  // User submits an answer to the server
+  // TODO: adjust this function to increment the score based on how fast the user answered
   socket.on("submit-answer", async (data) => {
-    answersRecieved++;
-
-    var correctlyAnswered = data.answerOption === correctAnswer;
+    const gameVars = activeRooms.get(data.room);
+    gameVars.answersRecieved++;
+    var correctlyAnswered = data.answerOption === gameVars.correctAnswer;
     if (correctlyAnswered) {
       console.log("Modifying Score: ", activeRooms.get(data.room));
-      activeRooms
-        .get(data.room)
-        .set(data.username, activeRooms.get(data.room).get(data.username) + 10);
+      gameVars.players.set(
+        data.username,
+        gameVars.players.get(data.username) + 10
+      );
       console.log("Modified Score: ", activeRooms.get(data.room));
     }
     sendLobbyToRoom(data.room);
 
     console.log(
-      `answersRecieved: ${answersRecieved}, totalPlayers: ${totalPlayers}, correctlyAnswered: ${correctlyAnswered}, data.answerOption: ${data.answerOption}, correctAnswer: ${correctAnswer}`
+      `answersRecieved: ${gameVars.answersRecieved}, totalPlayers: ${gameVars.totalPlayers}, correctlyAnswered: ${correctlyAnswered}, data.answerOption: ${data.answerOption}, correctAnswer: ${gameVars.correctAnswer}`
     );
 
-    if (answersRecieved >= totalPlayers) {
-      await fetchData();
-      answersRecieved = 0;
+    // If all users answer the question
+    if (gameVars.answersRecieved >= gameVars.totalPlayers) {
+      await fetchData(data.room);
+      gameVars.answersRecieved = 0;
       setTimeout(() => {
         io.in(data.room).emit("new-question", {
-          currentQuestion: currentQuestion,
-          answerOptions: answerOptions,
-          correctAnswer: correctAnswer,
+          currentQuestion: gameVars.currentQuestion,
+          answerOptions: gameVars.answerOptions,
+          correctAnswer: gameVars.correctAnswer,
           time: 15,
         });
       }, 3000);
       return;
     }
+    activeRooms.set(data.room, gameVars);
   });
 });
 
