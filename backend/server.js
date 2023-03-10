@@ -20,22 +20,40 @@ const io = socketIo(server, {
 
 const exchangeName = 'my-exchange';
 
+const mqSettings = {
+  protocol: 'amqp',
+  hostname: 'rabbitmqhost',
+  port: 5672,
+  username: 'guest',
+  password: 'guest',
+  vhost: '/',
+  authMechanism: ['PLAIN', 'AMQPLAIN', 'EXTERNAL']
+}
+
 async function initializeMQ() {
-  const conn = await amqp.connect(process.env.RABBITMQ_HOST);
-  const channel = await conn.createChannel();
+  try {
+    const conn = await amqp.connect(mqSettings);
+    console.log("RabbitMQ connection created...");
+    const channel = await conn.createChannel();
+    console.log("RabbitMQ channel created...");
 
-  await channel.assertExchange(exchangeName, 'fanout', { durable: false });
+    await channel.assertExchange(exchangeName, 'fanout', { durable: false });
 
-  const { queue } = await channel.assertQueue('', { exclusive: true });
-  await channel.bindQueue(queue, exchangeName, '');
+    const { queue } = await channel.assertQueue('', { exclusive: true });
+    await channel.bindQueue(queue, exchangeName, '');
+    console.log("Rabbit Message Queue created...");
 
-  channel.consume(queue, (msg) => {
-    console.log("message recieved: " + msg.content.toString());
-    activeRooms = new Map(JSON.parse(msg));
-    console.log("New Active Rooms: " + activeRooms);
-  }, { noAck: true });
+    // channel.consume(queue, (msg) => {
+    //   console.log("message recieved: " + msg.content.toString());
+    //   activeRooms = new Map(JSON.parse(msg));
+    //   console.log("New Active Rooms: " + activeRooms);
+    // }, { noAck: true });
 
-  return channel;
+    return channel;
+
+  } catch (error) {
+    console.error("Error: " + error);
+  }
 }
 
 const mqChannel = initializeMQ();
@@ -66,7 +84,16 @@ const sendLobbyToRoom = (room) => {
       });
     }
   });
-  mqChannel.publish(exchangeName, '', Buffer.from(JSON.stringify(activeRooms)));
+  console.log(mqChannel);
+
+  mqChannel.then(
+    function(value) {
+      value.publish(exchangeName, '', Buffer.from(JSON.stringify(activeRooms)));
+    },
+    function(error) {
+      console.log(error);
+    }
+  );
 
   // Update lobby after checking for winner
   let serializableMap = JSON.stringify(
