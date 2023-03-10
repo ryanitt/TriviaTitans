@@ -110,7 +110,7 @@ function createRoom(roomCode) {
     answerOptions: [],
     answersRecieved: 0,
     totalPlayers: 0,
-    totalPlayersSet: false,
+    gameRunning: false,
     currentQuestion: "",
     correctAnswer: "",
     questionsAsked: new Map(),
@@ -141,6 +141,7 @@ const sendLobbyToRoom = (room) => {
   activeRooms.get(room).players.forEach(function (value, key) {
     if (value >= 20) {
       io.in(room).emit("winner-found", { winner: key });
+      activeRooms.get(room).gameRunning = false;
       activeRooms.get(room).players.forEach(function (value, key) {
         activeRooms.get(room).players.set(key, 0);
       });
@@ -180,10 +181,21 @@ io.on("connection", (socket) => {
     } else {
       // check if the code exists
       if (activeRooms.has(data.room)) {
+        if (activeRooms.get(data.room).gameRunning) {
+          socket.emit("game-running", true);
+          console.log("Game is already running.");
+          return;
+        }
         // ignore any players beyond 5
         if (activeRooms.get(data.room).totalPlayers > 5) {
           socket.emit("limit-reached", true);
           console.log("Game limit reached.");
+          return;
+        }
+        // ignore any players that have an existing username in the room
+        if (activeRooms.get(data.room).players.has(data.username)) {
+          socket.emit("username-taken", true);
+          console.log("Username taken.");
           return;
         }
         socket.join(data.room);
@@ -263,10 +275,8 @@ io.on("connection", (socket) => {
 
   // User clicks the "Start Game" button, only accesible to the host
   socket.on("initialize-game", (data) => {
+    activeRooms.get(data.room).gameRunning = true;
     io.in(data.room).emit("started-game", {});
-    if (!activeRooms.get(data.room).totalPlayersSet) {
-      activeRooms.get(data.room).totalPlayersSet = true;
-    }
     sendLobbyToRoom(data.room);
   });
 
@@ -327,6 +337,8 @@ io.on("connection", (socket) => {
     gameVars.totalPlayers--;
     activeRooms.set(data.room, gameVars);
     console.log(`Player ${data.username} has left`);
+    socket.leave(data.room);
+    io.sockets.sockets.delete(socket.id);
     sendLobbyToRoom(data.room);
 });
 
@@ -334,6 +346,7 @@ io.on("connection", (socket) => {
   socket.on("host-left", (data) => {
     activeRooms.delete(data.room);
     console.log(`Host left the game. Room ${data.room} has been deleted`);
+    io.sockets.sockets.delete(socket.id);
     io.to(data.room).emit("room-deleted", {});
     updateMQ();
   });
