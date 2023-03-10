@@ -263,6 +263,8 @@ io.on("connection", (socket) => {
     gameVars.totalPlayers--;
     activeRooms.set(data.room, gameVars);
     console.log(`Player ${data.username} has left`);
+    socket.leave(data.room);
+    io.sockets.sockets.delete(socket.id);
     sendLobbyToRoom(data.room);
   });
 
@@ -270,6 +272,7 @@ io.on("connection", (socket) => {
   socket.on("host-left", (data) => {
     activeRooms.delete(data.room);
     console.log(`Host left the game. Room ${data.room} has been deleted`);
+    io.sockets.sockets.delete(socket.id);
     io.to(data.room).emit("room-deleted", {});
   });
 });
