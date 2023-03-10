@@ -22,13 +22,19 @@ const App = (props) => {
   const [room, setRoom] = useState("");
   const roomRef = useRef("");
   const [limitReached, setLimitReached] = useState(false);
+  const [gameRunning, setGameRunning] = useState(false);
   const [invalidCode, setInvalidCode] = useState(false);
   const [isNewGameModalOpen, setIsNewGameModalOpen] = useState(false);
   const [isJoinGameModalOpen, setIsJoinGameModalOpen] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
 
   const useJoinGame = () => {
-    if (roomRef.current !== "" && !invalidCode && !limitReached) {
+    if (
+      roomRef.current !== "" &&
+      !invalidCode &&
+      !limitReached &&
+      !gameRunning
+    ) {
       // TODO: if its an invalid code dont send this emit
       appSocket.emit("join-room", {
         username: usernameRef.current,
@@ -59,6 +65,9 @@ const App = (props) => {
     });
     appSocket.on("limit-reached", (data) => {
       if (data) setLimitReached(true);
+    });
+    appSocket.on("game-running", (data) => {
+      if (data) setGameRunning(true);
     });
     appSocket.on("invalid-code", (data) => {
       if (data) setInvalidCode(true);
