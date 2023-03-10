@@ -118,6 +118,12 @@ io.on("connection", (socket) => {
           console.log("Game limit reached.");
           return;
         }
+        // ignore any players that have an existing username in the room
+        if (activeRooms.get(data.room).players.has(data.username)) {
+          socket.emit("username-taken", true);
+          console.log("Username taken.");
+          return;
+        }
         socket.join(data.room);
         handleNewPlayer(data.room, data.username);
         // tell everyone which player just connected

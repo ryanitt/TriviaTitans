@@ -24,6 +24,7 @@ const App = (props) => {
   const [limitReached, setLimitReached] = useState(false);
   const [gameRunning, setGameRunning] = useState(false);
   const [invalidCode, setInvalidCode] = useState(false);
+  const [invalidUsername, setInvalidUsername] = useState(false);
   const [isNewGameModalOpen, setIsNewGameModalOpen] = useState(false);
   const [isJoinGameModalOpen, setIsJoinGameModalOpen] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
@@ -34,7 +35,8 @@ const App = (props) => {
       roomRef.current !== "" &&
       !invalidCode &&
       !limitReached &&
-      !gameRunning
+      !gameRunning &&
+      !invalidUsername
     ) {
       // TODO: if its an invalid code dont send this emit
       appSocket.emit("join-room", {
@@ -60,13 +62,12 @@ const App = (props) => {
     navigate("/game", { state: { username: usernameRef.current } });
   };
 
-  const handleModalClose = () => {
-    setIsNewGameModalOpen(false);
-    setIsJoinGameModalOpen(false);
+  const clearStates = () => {
     setLimitReached(false);
     setGameRunning(false);
     setInvalidCode(false);
     setShowAlert(false);
+    setInvalidUsername(false);
     setErrorText("");
     setUsername("");
     setRoom("");
@@ -86,12 +87,21 @@ const App = (props) => {
     });
     appSocket.on("invalid-code", (data) => {
       if (data) setInvalidCode(true);
-      setErrorText("Invalid  room code.");
+      setErrorText("Invalid room code.");
     });
-    appSocket.on("room-code", (data) => {
-      console.log("ROOM CODE:", data);
+    appSocket.on("username-taken", (data) => {
+      if (data) setInvalidUsername(true);
+      setErrorText(`Username ${username} has been taken for this room.`);
     });
-  }, [appSocket, navigate]);
+  }, [appSocket, navigate, username]);
+
+  useEffect(() => {
+    if (errorText !== "") {
+      setTimeout(() => {
+        clearStates();
+      }, 5000);
+    }
+  }, [errorText]);
 
   useEffect(() => {
     if (location.state) {
@@ -137,7 +147,10 @@ const App = (props) => {
         </Button>
         <Modal
           opened={isJoinGameModalOpen}
-          onClose={() => handleModalClose()}
+          onClose={() => {
+            setIsJoinGameModalOpen(false);
+            clearStates();
+          }}
           title="Join Game"
         >
           <TextInput
@@ -157,11 +170,19 @@ const App = (props) => {
           <Text color="red" size="md">
             {errorText}
           </Text>
+          <Space h="md" />
           <Center>
             <Button onClick={useJoinGame}>Join Game</Button>
           </Center>
         </Modal>
-        <Modal opened={isNewGameModalOpen} onClose={() => handleModalClose()}>
+        <Modal
+          opened={isNewGameModalOpen}
+          onClose={() => {
+            setIsNewGameModalOpen(false);
+            clearStates();
+          }}
+          title="New Game"
+        >
           <TextInput
             label="Username"
             placeholder="Enter your username"
