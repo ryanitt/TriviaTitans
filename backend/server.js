@@ -130,7 +130,9 @@ io.on("connection", (socket) => {
         socket.emit("player-connection", playerIndex);
         socket.broadcast.to(data.room).emit("player-connection", playerIndex);
         socket.emit("room-code", data.room);
-        sendLobbyToRoom(data.room);
+        setTimeout(() => {
+          sendLobbyToRoom(data.room);
+        }, 100);
       } else {
         socket.emit("invalid-code", true);
       }
@@ -144,7 +146,6 @@ io.on("connection", (socket) => {
     const response = await QueryQuestion(room);
     const decodedData = decodeHtmlEntities(response);
     const type = decodedData["type"];
-    console.log(type);
 
     const gameVars = activeRooms.get(room);
 
