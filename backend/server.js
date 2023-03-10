@@ -8,32 +8,37 @@ const app = express();
 const server = http.createServer(app);
 
 // MongoDB stuff
-const mongourl = "mongodb+srv://triviatitans:triviatitans123@cluster0.gtvyghr.mongodb.net/?retryWrites=true&w=majority";
-const { MongoClient } = require('mongodb');
+const mongourl =
+  "mongodb+srv://triviatitans:triviatitans123@cluster0.gtvyghr.mongodb.net/?retryWrites=true&w=majority";
+const { MongoClient } = require("mongodb");
 const client = new MongoClient(mongourl);
-async function connectClient(){
-  try{
+async function connectClient() {
+  try {
     await client.connect();
-  } catch (err){
+  } catch (err) {
     console.log(err);
   }
 }
 connectClient();
 
-async function QueryQuestion(room){
+async function QueryQuestion(room) {
   var db = client.db("triviatitans");
   randomQuestionNum = getRandomInt(2149);
-  while (activeRooms.get(room).questionsAsked.has(randomQuestionNum)){
+  while (activeRooms.get(room).questionsAsked.has(randomQuestionNum)) {
     randomQuestionNum = getRandomInt(2149);
   }
   activeRooms.get(room).questionsAsked.set(randomQuestionNum, 1);
-  response = await db.collection('questions').find().limit(-1).skip(randomQuestionNum).next()
+  response = await db
+    .collection("questions")
+    .find()
+    .limit(-1)
+    .skip(randomQuestionNum)
+    .next();
   return response;
-};
+}
 function getRandomInt(max) {
   return Math.floor(Math.random() * max);
 }
-
 
 //mongoose.connect(url, { useNewUrlParser: true, useUnifiedTopology: true }).then((result) => console.log("connected to db")).catch((err) => console.log(err));
 const io = socketIo(server, {
@@ -85,49 +90,37 @@ function handleNewPlayer(room, username) {
 }
 
 //in case server and client run on different urls
-let connections = [null, null, null, null, null];
 io.on("connection", (socket) => {
   socket.on("join-room", (data) => {
-    let playerIndex = -1;
     if (data.newGame) {
-      playerIndex = 0;
-      connections[playerIndex] = false;
-      // this is player 1 - mark that dude
       socket.join(data.room);
       console.log("New Game:", data.room);
       createRoom(data.room);
       handleNewPlayer(data.room, data.username);
       console.log(`${data.username} has connected to ${data.room}`);
       socket.emit("assign-host", true);
-      socket.emit("player-connection", playerIndex);
-      socket.broadcast.to(data.room).emit("player-connection", playerIndex);
+      socket.emit("player-connection", {});
+      socket.broadcast.to(data.room).emit("player-connection", {});
       socket.emit("room-code", data.room);
       sendLobbyToRoom(data.room);
     } else {
       // check if the code exists
       if (activeRooms.has(data.room)) {
-        for (const i in connections) {
-          if (connections[i] === null) {
-            playerIndex = i;
-            break;
-          }
-        }
         // ignore any players beyond 5
-        if (playerIndex === -1) {
+        if (activeRooms.get(data.room).totalPlayers > 5) {
           socket.emit("limit-reached", true);
           console.log("Game limit reached.");
           return;
         }
         socket.join(data.room);
-        connections[playerIndex] = false;
         handleNewPlayer(data.room, data.username);
         // tell everyone which player just connected
         console.log(`${data.username} has joined ${data.room}`);
 
         socket.emit("join-success", true);
         socket.broadcast.to(data.room).emit("join-success", true);
-        socket.emit("player-connection", playerIndex);
-        socket.broadcast.to(data.room).emit("player-connection", playerIndex);
+        socket.emit("player-connection", {});
+        socket.broadcast.to(data.room).emit("player-connection", {});
         socket.emit("room-code", data.room);
         setTimeout(() => {
           sendLobbyToRoom(data.room);
