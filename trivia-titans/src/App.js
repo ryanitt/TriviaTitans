@@ -27,6 +27,7 @@ const App = (props) => {
   const [isNewGameModalOpen, setIsNewGameModalOpen] = useState(false);
   const [isJoinGameModalOpen, setIsJoinGameModalOpen] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
+  const [errorText, setErrorText] = useState("");
 
   const useJoinGame = () => {
     if (
@@ -59,18 +60,33 @@ const App = (props) => {
     navigate("/game", { state: { username: usernameRef.current } });
   };
 
+  const handleModalClose = () => {
+    setIsNewGameModalOpen(false);
+    setIsJoinGameModalOpen(false);
+    setLimitReached(false);
+    setGameRunning(false);
+    setInvalidCode(false);
+    setShowAlert(false);
+    setErrorText("");
+    setUsername("");
+    setRoom("");
+  };
+
   useEffect(() => {
     appSocket.on("join-success", (data) => {
       if (data) navigate("/game", { state: { username: usernameRef.current } });
     });
     appSocket.on("limit-reached", (data) => {
       if (data) setLimitReached(true);
+      setErrorText("Room is full.");
     });
     appSocket.on("game-running", (data) => {
       if (data) setGameRunning(true);
+      setErrorText("Game is already running.");
     });
     appSocket.on("invalid-code", (data) => {
       if (data) setInvalidCode(true);
+      setErrorText("Invalid  room code.");
     });
     appSocket.on("room-code", (data) => {
       console.log("ROOM CODE:", data);
@@ -121,7 +137,7 @@ const App = (props) => {
         </Button>
         <Modal
           opened={isJoinGameModalOpen}
-          onClose={() => setIsJoinGameModalOpen(!isJoinGameModalOpen)}
+          onClose={() => handleModalClose()}
           title="Join Game"
         >
           <TextInput
@@ -138,14 +154,14 @@ const App = (props) => {
             onChange={(e) => setRoom(e.currentTarget.value)}
           />
           <Space h="md" />
+          <Text color="red" size="md">
+            {errorText}
+          </Text>
           <Center>
             <Button onClick={useJoinGame}>Join Game</Button>
           </Center>
         </Modal>
-        <Modal
-          opened={isNewGameModalOpen}
-          onClose={() => setIsNewGameModalOpen(!isNewGameModalOpen)}
-        >
+        <Modal opened={isNewGameModalOpen} onClose={() => handleModalClose()}>
           <TextInput
             label="Username"
             placeholder="Enter your username"
