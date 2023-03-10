@@ -2,14 +2,46 @@ const express = require("express");
 const socketIo = require("socket.io");
 const http = require("http");
 const he = require("he");
-
-const fetch = require("node-fetch");
-
 const amqp = require('amqplib');
 
 const PORT = process.env.PORT || 8080;
 const app = express();
 const server = http.createServer(app);
+
+// MongoDB stuff
+const mongourl =
+  "mongodb+srv://triviatitans:triviatitans123@cluster0.gtvyghr.mongodb.net/?retryWrites=true&w=majority";
+const { MongoClient } = require("mongodb");
+const client = new MongoClient(mongourl);
+async function connectClient() {
+  try {
+    await client.connect();
+  } catch (err) {
+    console.log(err);
+  }
+}
+connectClient();
+
+async function QueryQuestion(room) {
+  var db = client.db("triviatitans");
+  randomQuestionNum = getRandomInt(2149);
+  while (activeRooms.get(room).questionsAsked.has(randomQuestionNum)) {
+    randomQuestionNum = getRandomInt(2149);
+  }
+  activeRooms.get(room).questionsAsked.set(randomQuestionNum, 1);
+  response = await db
+    .collection("questions")
+    .find()
+    .limit(-1)
+    .skip(randomQuestionNum)
+    .next();
+  return response;
+}
+function getRandomInt(max) {
+  return Math.floor(Math.random() * max);
+}
+
+//mongoose.connect(url, { useNewUrlParser: true, useUnifiedTopology: true }).then((result) => console.log("connected to db")).catch((err) => console.log(err));
 const io = socketIo(server, {
   cors: {
     origin: "http://localhost:3000",
@@ -81,6 +113,7 @@ function createRoom(roomCode) {
     totalPlayersSet: false,
     currentQuestion: "",
     correctAnswer: "",
+    questionsAsked: new Map(),
   };
   activeRooms.set(roomCode, gameVariables);
 }
@@ -130,52 +163,42 @@ function handleNewPlayer(room, username) {
 }
 
 //in case server and client run on different urls
-let connections = [null, null, null, null, null];
 io.on("connection", (socket) => {
   socket.on("join-room", (data) => {
-    let playerIndex = -1;
     if (data.newGame) {
-      playerIndex = 0;
-      connections[playerIndex] = false;
-      // this is player 1 - mark that dude
       socket.join(data.room);
       console.log("New Game:", data.room);
       createRoom(data.room);
       handleNewPlayer(data.room, data.username);
       console.log(`${data.username} has connected to ${data.room}`);
       socket.emit("assign-host", true);
-      socket.emit("player-connection", playerIndex);
-      socket.broadcast.to(data.room).emit("player-connection", playerIndex);
+      socket.emit("player-connection", {});
+      socket.broadcast.to(data.room).emit("player-connection", {});
       socket.emit("room-code", data.room);
 
       sendLobbyToRoom(data.room);
     } else {
       // check if the code exists
       if (activeRooms.has(data.room)) {
-        for (const i in connections) {
-          if (connections[i] === null) {
-            playerIndex = i;
-            break;
-          }
-        }
         // ignore any players beyond 5
-        if (playerIndex === -1) {
+        if (activeRooms.get(data.room).totalPlayers > 5) {
           socket.emit("limit-reached", true);
           console.log("Game limit reached.");
           return;
         }
         socket.join(data.room);
-        connections[playerIndex] = false;
         handleNewPlayer(data.room, data.username);
         // tell everyone which player just connected
         console.log(`${data.username} has joined ${data.room}`);
 
         socket.emit("join-success", true);
         socket.broadcast.to(data.room).emit("join-success", true);
-        socket.emit("player-connection", playerIndex);
-        socket.broadcast.to(data.room).emit("player-connection", playerIndex);
+        socket.emit("player-connection", {});
+        socket.broadcast.to(data.room).emit("player-connection", {});
         socket.emit("room-code", data.room);
-        sendLobbyToRoom(data.room);
+        setTimeout(() => {
+          sendLobbyToRoom(data.room);
+        }, 100);
       } else {
         socket.emit("invalid-code", true);
       }
@@ -186,30 +209,28 @@ io.on("connection", (socket) => {
 
   // Fetching data from the trivia db
   const fetchData = async (room) => {
-    const response = await fetch("https://opentdb.com/api.php?amount=1");
-
-    const data = await response.json();
-    const decodedData = decodeHtmlEntities(data);
-    const type = decodedData.results[0].type;
+    const response = await QueryQuestion(room);
+    const decodedData = decodeHtmlEntities(response);
+    const type = decodedData["type"];
 
     const gameVars = activeRooms.get(room);
 
     if (type === "multiple") {
       const multipleOptions = [
-        decodedData.results[0].correct_answer,
-        decodedData.results[0].incorrect_answers[0],
-        decodedData.results[0].incorrect_answers[1],
-        decodedData.results[0].incorrect_answers[2],
+        decodedData["correct_answer"],
+        decodedData["incorrect_answers"][0],
+        decodedData["incorrect_answers"][1],
+        decodedData["incorrect_answers"][2],
       ];
       const shuffledOptions = shuffleArray(multipleOptions);
-      gameVars.currentQuestion = decodedData.results[0].question;
+      gameVars.currentQuestion = decodedData["question"];
       gameVars.answerOptions = shuffledOptions;
-      gameVars.correctAnswer = decodedData.results[0].correct_answer;
+      gameVars.correctAnswer = decodedData["correct_answer"];
     } else {
       const booleanOptions = ["True", "False"];
-      gameVars.currentQuestion = decodedData.results[0].question;
+      gameVars.currentQuestion = decodedData["question"];
       gameVars.answerOptions = booleanOptions;
-      gameVars.correctAnswer = decodedData.results[0].correct_answer;
+      gameVars.correctAnswer = decodedData["correct_answer"];
     }
     activeRooms.set(room, gameVars);
     updateMQ();
