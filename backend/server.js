@@ -19,6 +19,8 @@ const io = socketIo(server, {
 // RabbitMQ Message Queue connection
 
 const exchangeName = 'my-exchange';
+const instanceId = process.env.INSTANCE_ID;
+console.log(instanceId);
 
 const mqSettings = {
   protocol: 'amqp',
@@ -32,6 +34,7 @@ const mqSettings = {
 
 async function initializeMQ() {
   try {
+
     const conn = await amqp.connect(mqSettings);
     console.log("RabbitMQ connection created...");
     const channel = await conn.createChannel();
@@ -39,15 +42,23 @@ async function initializeMQ() {
 
     await channel.assertExchange(exchangeName, 'fanout', { durable: false });
 
-    const { queue } = await channel.assertQueue('', { exclusive: true });
+    const { queue } = await channel.assertQueue('titanQueue', {});
     await channel.bindQueue(queue, exchangeName, '');
     console.log("Rabbit Message Queue created...");
 
-    // channel.consume(queue, (msg) => {
-    //   console.log("message recieved: " + msg.content.toString());
-    //   activeRooms = new Map(JSON.parse(msg));
-    //   console.log("New Active Rooms: " + activeRooms);
-    // }, { noAck: true });
+    channel.consume(queue, (msg) => {
+      if(msg.properties.headers["instance-id"] == instanceId) {
+        console.log("Recieved my own message");
+        channel.nack(msg, false, true);
+
+
+      } else {
+        console.log("Recieved someone else's message: " + msg.content.toString());
+        channel.ack(msg);
+      }
+      // activeRooms = new JSON.parse(msg));
+      // console.log("New Active Rooms: " + activeRooms);
+    }, {noAck: false});
 
     return channel;
 
@@ -74,6 +85,24 @@ function createRoom(roomCode) {
   activeRooms.set(roomCode, gameVariables);
 }
 
+const updateMQ = () => {
+  mqChannel.then(
+    function(value) {
+      const headers = { 'instance-id': instanceId };
+
+      value.publish(exchangeName, '', Buffer.from(JSON.stringify(activeRooms, (key, value) => {
+        if (value instanceof Map) {
+          return Array.from(value.entries());
+        }
+        return value;
+      })), {headers});
+    },
+    function(error) {
+      console.log(error);
+    }
+  );
+}
+
 const sendLobbyToRoom = (room) => {
   // Check if someone won
   activeRooms.get(room).players.forEach(function (value, key) {
@@ -84,21 +113,11 @@ const sendLobbyToRoom = (room) => {
       });
     }
   });
-  console.log(mqChannel);
-
-  mqChannel.then(
-    function(value) {
-      value.publish(exchangeName, '', Buffer.from(JSON.stringify(activeRooms)));
-    },
-    function(error) {
-      console.log(error);
-    }
-  );
-
   // Update lobby after checking for winner
   let serializableMap = JSON.stringify(
     Array.from(activeRooms.get(room).players)
   );
+  updateMQ();
 
   io.in(room).emit("update-lobby", { lobby: serializableMap, room: room });
 };
@@ -193,6 +212,7 @@ io.on("connection", (socket) => {
       gameVars.correctAnswer = decodedData.results[0].correct_answer;
     }
     activeRooms.set(room, gameVars);
+    updateMQ();
   };
 
   // Decode special http characters
@@ -251,18 +271,16 @@ io.on("connection", (socket) => {
     gameVars.answersRecieved++;
     var correctlyAnswered = data.answerOption === gameVars.correctAnswer;
     if (correctlyAnswered) {
-      console.log("Modifying Score: ", activeRooms.get(data.room));
       gameVars.players.set(
         data.username,
         gameVars.players.get(data.username) + 10
       );
       console.log("Modified Score: ", activeRooms.get(data.room));
     }
-    sendLobbyToRoom(data.room);
 
-    console.log(
-      `answersRecieved: ${gameVars.answersRecieved}, totalPlayers: ${gameVars.totalPlayers}, correctlyAnswered: ${correctlyAnswered}, data.answerOption: ${data.answerOption}, correctAnswer: ${gameVars.correctAnswer}`
-    );
+    // console.log(
+    //   `answersRecieved: ${gameVars.answersRecieved}, totalPlayers: ${gameVars.totalPlayers}, correctlyAnswered: ${correctlyAnswered}, data.answerOption: ${data.answerOption}, correctAnswer: ${gameVars.correctAnswer}`
+    // );
 
     // If all users answer the question
     if (gameVars.answersRecieved >= gameVars.totalPlayers) {
@@ -279,6 +297,7 @@ io.on("connection", (socket) => {
       return;
     }
     activeRooms.set(data.room, gameVars);
+    sendLobbyToRoom(data.room);
   });
 
   socket.on("leave-room", (data) => {
@@ -295,6 +314,7 @@ io.on("connection", (socket) => {
     activeRooms.delete(data.room);
     console.log(`Host left the game. Room ${data.room} has been deleted`);
     io.to(data.room).emit("room-deleted", {});
+    updateMQ();
   });
 });
 
