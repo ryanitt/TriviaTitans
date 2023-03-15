@@ -1,0 +1,15 @@
+{
+  "name": "docker-daemon",
+  "version": "1.0.0",
+  "description": "Manager for docker container socket-binding",
+  "main": "docker-daemon.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "amqplib": "^0.10.3",
+    "dockerode": "^3.3.5"
+  }
+}

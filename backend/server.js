@@ -4,9 +4,10 @@ const http = require("http");
 const he = require("he");
 const amqp = require('amqplib');
 
-const PORT = process.env.PORT || 8080;
 const app = express();
 const server = http.createServer(app);
+
+let PORT = process.env.PORT || 8080;
 
 // MongoDB stuff
 const mongourl =
@@ -52,6 +53,14 @@ const io = socketIo(server, {
 
 const exchangeName = 'my-exchange';
 const instanceId = process.env.INSTANCE_ID;
+
+// Assume leader is srv1 to start
+let leader = 1; 
+let leaderTimeout = null;
+
+// Create heartbeat timeout to check if leader is alive
+let heartbeatTimeout = null;
+
 console.log(instanceId);
 
 // Wait utility function (to allow connection to RabbitMQ service to connect properly)
@@ -69,6 +78,148 @@ const mqSettings = {
   authMechanism: ['PLAIN', 'AMQPLAIN', 'EXTERNAL']
 }
 
+// Publish functions
+
+// Send active rooms to everyone
+const updateData = () => {
+  mqChannel.then(
+    function(value) {
+      const headers = { 
+        'instance-id': instanceId,
+        'message-type': "data-update"
+      };
+
+      value.publish(exchangeName, '', Buffer.from(JSON.stringify(activeRooms, (key, value) => {
+        if (value instanceof Map) {
+          return Array.from(value.entries());
+        }
+        return value;
+      })), {headers});
+    },
+    function(error) {
+      console.log(error);
+    }
+  );
+}
+// Initiate an election for everyone
+const initiateElection = () => {
+  mqChannel.then(
+    function(value) {
+      const headers = { 
+        'instance-id': instanceId,
+        'message-type': "initiate-election"
+      };
+
+      value.publish(exchangeName, '', Buffer.from(""), {headers});
+
+      if(leaderTimeout != null) {
+        clearTimeout(leaderTimeout);
+      }
+      leaderTimeout = setTimeout(leaderElected, 5000);
+
+      console.log("Leader timeout started");
+    },
+    function(error) {
+      console.log(error);
+    }
+  );}
+// Tell everyone I am the leader
+const leaderElected = () => {
+  mqChannel.then(
+    function(value) {
+      const headers = { 
+        'instance-id': instanceId,
+        'message-type': "leader-elected"
+      };
+
+      value.publish(exchangeName, '', Buffer.from(""), {headers});
+      leader = instanceId;
+    },
+    function(error) {
+      console.log(error);
+    }
+  );}
+  // Send heartbeat if I am the leader
+  const sendHeartbeat = () => {
+    if(instanceId != leader) {
+      return;
+    }
+    mqChannel.then(
+      function(value) {
+        const headers = { 
+          'instance-id': instanceId,
+          'message-type': "send-heartbeat"
+        };
+
+        value.publish(exchangeName, '', Buffer.from(""), {headers});
+      },
+      function(error) {
+        console.log(error);
+      }
+    );}
+  
+
+// Consume functions
+
+// Update new active rooms to additional data 
+const consumeUpdateData = (msg) => {
+  if(msg.properties.headers["instance-id"] == instanceId) {
+    console.log("Recieved my own room update");
+  } else {
+    console.log("Recieved someone else's message: " + msg.content.toString());
+    // activeRooms = new JSON.parse(msg));
+    // console.log("New Active Rooms: " + activeRooms);
+  }
+}
+
+// New leader is trying to be elected
+const consumeInitiateElection = (msg) => {
+  if(msg.properties.headers["instance-id"] == instanceId) {
+    console.log("Recieved my own leader election");
+  } else {
+    console.log("Recieved someone else's leader election: " + msg.content.toString());
+    
+    if(instanceId < msg.properties.headers["instance-id"]) {
+      initiateElection();
+    } else {
+      if(leaderTimeout != null) {
+        clearTimeout(leaderTimeout);
+      }
+    }
+  }
+}
+// leader has been elected
+const consumeLeaderElected = (msg) => {
+  if(msg.properties.headers["instance-id"] == instanceId) {
+    console.log("Recieved my leader election is successful");
+    console.log("Leader server running on Port ", PORT);
+  } else {
+    console.log("Recieved someone else's leader election is successful");
+
+    if(leaderTimeout != null) {
+      clearTimeout(leaderTimeout);
+    }
+    leader = msg.properties.headers["instance-id"];
+    console.log("Replica server running on Port ", PORT);
+
+  }
+}
+
+// consume heartbeat message from leader
+const consumeSendHeartbeat = (msg) => {
+  if(msg.properties.headers["instance-id"] == instanceId) {
+    console.log("Recieved my own heartbeat");
+  } else {
+    console.log("Recieved heartbeat from leader ", msg.properties.headers["instance-id"]);
+    
+    if(heartbeatTimeout != null) {
+      clearTimeout(heartbeatTimeout);
+    }
+    heartbeatTimeout = setTimeout(initiateElection, 10000);
+  }
+}
+
+
 async function initializeMQ() {
   try {
       await waitTime(15000);
@@ -84,15 +235,25 @@ async function initializeMQ() {
       console.log("Rabbit Message Queue created...");
 
       channel.consume(queue, (msg) => {
-        if(msg.properties.headers["instance-id"] == instanceId) {
-          console.log("Recieved my own message");
-        } else {
-          console.log("Recieved someone else's message: " + msg.content.toString());
+        switch (msg.properties.headers["message-type"]) {
+          case "data-update":
+            consumeUpdateData(msg);
+            break;
+          case "initiate-election":
+            consumeInitiateElection(msg);
+            break;
+          case "leader-elected":
+            consumeLeaderElected(msg);
+            break;
+          case "send-heartbeat":
+            consumeSendHeartbeat(msg);
+            break;
+          default:
+            console.log("Unknown message-type: " + msg.properties.headers["message-type"]);
+            break;
         }
         channel.ack(msg);
-
-        // activeRooms = new JSON.parse(msg));
-        // console.log("New Active Rooms: " + activeRooms);
+    
       }, {noAck: false});
 
       return channel;
@@ -103,6 +264,8 @@ async function initializeMQ() {
 }
 
 const mqChannel = initializeMQ();
+setInterval(sendHeartbeat, 5000);
+
 
 // Room Management
 let activeRooms = new Map();
@@ -121,24 +284,6 @@ function createRoom(roomCode) {
   activeRooms.set(roomCode, gameVariables);
 }
 
-const updateMQ = () => {
-  mqChannel.then(
-    function(value) {
-      const headers = { 'instance-id': instanceId };
-
-      value.publish(exchangeName, '', Buffer.from(JSON.stringify(activeRooms, (key, value) => {
-        if (value instanceof Map) {
-          return Array.from(value.entries());
-        }
-        return value;
-      })), {headers});
-    },
-    function(error) {
-      console.log(error);
-    }
-  );
-}
-
 const sendLobbyToRoom = (room) => {
   // Check if someone won
   activeRooms.get(room).players.forEach(function (value, key) {
@@ -153,7 +298,7 @@ const sendLobbyToRoom = (room) => {
   let serializableMap = JSON.stringify(
     Array.from(activeRooms.get(room).players)
   );
-  updateMQ();
+  updateData();
 
   io.in(room).emit("update-lobby", { lobby: serializableMap, room: room });
 };
@@ -236,7 +381,7 @@ io.on("connection", (socket) => {
       gameVars.correctAnswer = decodedData["correct_answer"];
     }
     activeRooms.set(room, gameVars);
-    updateMQ();
+    updateData();
   };
 
   // Decode special http characters
@@ -338,12 +483,16 @@ io.on("connection", (socket) => {
     activeRooms.delete(data.room);
     console.log(`Host left the game. Room ${data.room} has been deleted`);
     io.to(data.room).emit("room-deleted", {});
-    updateMQ();
+    updateData();
   });
 });
 
-// start server and listen for port
+// start server and listen for current port
 server.listen(PORT, (err) => {
   if (err) console.log(err);
-  console.log("Server running on Port ", PORT);
+  if(instanceId == leader) {
+    console.log("Leader server running on Port ", PORT);
+  } else {
+    console.log("Replica server running on Port ", PORT);
+  }
 });
