@@ -54,9 +54,14 @@ const exchangeName = 'my-exchange';
 const instanceId = process.env.INSTANCE_ID;
 console.log(instanceId);
 
+// Wait utility function (to allow connection to RabbitMQ service to connect properly)
+function waitTime(time) {
+  return new Promise(resolve => setTimeout(resolve, time));
+}
+
 const mqSettings = {
   protocol: 'amqp',
-  hostname: 'rabbitmqhost',
+  hostname: 'rabbitmq',
   port: 5672,
   username: 'guest',
   password: 'guest',
@@ -66,36 +71,34 @@ const mqSettings = {
 
 async function initializeMQ() {
   try {
+      await waitTime(15000);
+      const conn = await amqp.connect(mqSettings);
+      console.log("RabbitMQ connection created...");
+      const channel = await conn.createChannel();
+      console.log("RabbitMQ channel created...");
 
-    const conn = await amqp.connect(mqSettings);
-    console.log("RabbitMQ connection created...");
-    const channel = await conn.createChannel();
-    console.log("RabbitMQ channel created...");
+      await channel.assertExchange(exchangeName, 'fanout', { durable: false });
 
-    await channel.assertExchange(exchangeName, 'fanout', { durable: false });
+      const { queue } = await channel.assertQueue('queue_' + instanceId, {});
+      await channel.bindQueue(queue, exchangeName, '');
+      console.log("Rabbit Message Queue created...");
 
-    const { queue } = await channel.assertQueue('titanQueue', {});
-    await channel.bindQueue(queue, exchangeName, '');
-    console.log("Rabbit Message Queue created...");
-
-    channel.consume(queue, (msg) => {
-      if(msg.properties.headers["instance-id"] == instanceId) {
-        console.log("Recieved my own message");
-        channel.nack(msg, false, true);
-
-
-      } else {
-        console.log("Recieved someone else's message: " + msg.content.toString());
+      channel.consume(queue, (msg) => {
+        if(msg.properties.headers["instance-id"] == instanceId) {
+          console.log("Recieved my own message");
+        } else {
+          console.log("Recieved someone else's message: " + msg.content.toString());
+        }
         channel.ack(msg);
-      }
-      // activeRooms = new JSON.parse(msg));
-      // console.log("New Active Rooms: " + activeRooms);
-    }, {noAck: false});
 
-    return channel;
+        // activeRooms = new JSON.parse(msg));
+        // console.log("New Active Rooms: " + activeRooms);
+      }, {noAck: false});
+
+      return channel;
 
   } catch (error) {
-    console.error("Error: " + error);
+    console.error(error);
   }
 }
 
