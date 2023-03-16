@@ -164,9 +164,9 @@ const leaderElected = () => {
 // Update new active rooms to additional data 
 const consumeUpdateData = (msg) => {
   if(msg.properties.headers["instance-id"] == instanceId) {
-    console.log("Recieved my own room update");
+    console.log("Received my own room update");
   } else {
-    console.log("Recieved someone else's message: " + msg.content.toString());
+    console.log("Received someone else's message: " + msg.content.toString());
     // activeRooms = new JSON.parse(msg));
     // console.log("New Active Rooms: " + activeRooms);
   }
@@ -175,9 +175,9 @@ const consumeUpdateData = (msg) => {
 // New leader is trying to be elected
 const consumeInitiateElection = (msg) => {
   if(msg.properties.headers["instance-id"] == instanceId) {
-    console.log("Recieved my own leader election");
+    console.log("Received my own leader election");
   } else {
-    console.log("Recieved someone else's leader election: " + msg.content.toString());
+    console.log("Received someone else's leader election: " + msg.content.toString());
     
     if(instanceId < msg.properties.headers["instance-id"]) {
       initiateElection();
@@ -191,26 +191,32 @@ const consumeInitiateElection = (msg) => {
 // leader has been elected
 const consumeLeaderElected = (msg) => {
   if(msg.properties.headers["instance-id"] == instanceId) {
-    console.log("Recieved my leader election is successful");
-    console.log("Leader server running on Port ", PORT);
+    console.log("Received my leader election is successful");
   } else {
-    console.log("Recieved someone else's leader election is successful");
+    console.log("Received someone else's leader election is successful");
 
     if(leaderTimeout != null) {
       clearTimeout(leaderTimeout);
     }
     leader = msg.properties.headers["instance-id"];
-    console.log("Replica server running on Port ", PORT);
+  }
+}
 
+// Recieve server switch update
+const consumeServerSwitch = (msg) => {
+  if(msg.properties.headers["leader-instance-id"] == instanceId) {
+    console.log("Server switched to leader and is now running");
+  } else {
+    console.log("Leader server switch and is now operational for srv" + msg.properties.headers["leader-instance-id"]);
   }
 }
 
 // consume heartbeat message from leader
 const consumeSendHeartbeat = (msg) => {
   if(msg.properties.headers["instance-id"] == instanceId) {
-    console.log("Recieved my own heartbeat");
+    console.log("Received my own heartbeat");
   } else {
-    console.log("Recieved heartbeat from leader ", msg.properties.headers["instance-id"]);
+    console.log("Received heartbeat from leader ", msg.properties.headers["instance-id"]);
     
     if(heartbeatTimeout != null) {
       clearTimeout(heartbeatTimeout);
@@ -248,6 +254,9 @@ async function initializeMQ() {
           case "send-heartbeat":
             consumeSendHeartbeat(msg);
             break;
+          case "server-switch":
+            consumeServerSwitch(msg);
+            break;
           default:
             console.log("Unknown message-type: " + msg.properties.headers["message-type"]);
             break;
@@ -274,7 +283,7 @@ function createRoom(roomCode) {
   let gameVariables = {
     players: new Map(),
     answerOptions: [],
-    answersRecieved: 0,
+    answersReceived: 0,
     totalPlayers: 0,
     totalPlayersSet: false,
     currentQuestion: "",
@@ -353,7 +362,7 @@ io.on("connection", (socket) => {
     }
   });
 
-  // Trivia Game Logic //
+  // Trivia Game Logic
 
   // Fetching data from the trivia db
   const fetchData = async (room) => {
@@ -423,7 +432,7 @@ io.on("connection", (socket) => {
     console.log("Requesting Question");
     await fetchData(data.room);
     const gameVars = activeRooms.get(data.room);
-    gameVars.answersRecieved = 0;
+    gameVars.answersReceived = 0;
     io.in(data.room).emit("new-question", {
       currentQuestion: gameVars.currentQuestion,
       answerOptions: gameVars.answerOptions,
@@ -437,7 +446,7 @@ io.on("connection", (socket) => {
   // TODO: adjust this function to increment the score based on how fast the user answered
   socket.on("submit-answer", async (data) => {
     const gameVars = activeRooms.get(data.room);
-    gameVars.answersRecieved++;
+    gameVars.answersReceived++;
     var correctlyAnswered = data.answerOption === gameVars.correctAnswer;
     if (correctlyAnswered) {
       gameVars.players.set(
@@ -448,13 +457,13 @@ io.on("connection", (socket) => {
     }
 
     // console.log(
-    //   `answersRecieved: ${gameVars.answersRecieved}, totalPlayers: ${gameVars.totalPlayers}, correctlyAnswered: ${correctlyAnswered}, data.answerOption: ${data.answerOption}, correctAnswer: ${gameVars.correctAnswer}`
+    //   `answersReceived: ${gameVars.answersReceived}, totalPlayers: ${gameVars.totalPlayers}, correctlyAnswered: ${correctlyAnswered}, data.answerOption: ${data.answerOption}, correctAnswer: ${gameVars.correctAnswer}`
     // );
 
     // If all users answer the question
-    if (gameVars.answersRecieved >= gameVars.totalPlayers) {
+    if (gameVars.answersReceived >= gameVars.totalPlayers) {
       await fetchData(data.room);
-      gameVars.answersRecieved = 0;
+      gameVars.answersReceived = 0;
       setTimeout(() => {
         io.in(data.room).emit("new-question", {
           currentQuestion: gameVars.currentQuestion,
