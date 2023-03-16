@@ -34,9 +34,12 @@ services:
       - 8080:8080
     networks:
       - titan
+    volumes:
+      - data:/app/data
     environment:
       PORT: 8080
       INSTANCE_ID: 1
+      LEADER: 1
       RABBITMQ_HOST: rabbitmq
       # OTHER_SERVERS: 2
       # MONGO_URI: mongodb://root:example@database1:27017/
@@ -50,9 +53,12 @@ services:
       - 8081:8080
     networks:
       - titan
+    volumes:
+      - data:/app/data
     environment:
       PORT: 8080
       INSTANCE_ID: 2
+      LEADER: 1
       RABBITMQ_HOST: rabbitmq
       # OTHER_SERVERS: 1
       # MONGO_URI: mongodb://root:example@database2:27017/
@@ -65,9 +71,12 @@ services:
       - 8082:8080
     networks:
       - titan
+    volumes:
+    - data:/app/data
     environment:
       PORT: 8080
       INSTANCE_ID: 3
+      LEADER: 1
       RABBITMQ_HOST: rabbitmq
       # OTHER_SERVERS: 1
       # MONGO_URI: mongodb://root:example@database2:27017/
@@ -75,6 +84,13 @@ networks:
   titan:
       name: titan
       driver: bridge
+volumes:
+  data:
+    driver: local
+    driver_opts:
+      type: none
+      device: /data
+      o: bind
 
 
 

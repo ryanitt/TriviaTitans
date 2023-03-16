@@ -3,8 +3,10 @@ const socketIo = require("socket.io");
 const http = require("http");
 const he = require("he");
 const amqp = require('amqplib');
+const fs = require('fs');
 
 const app = express();
+
 const server = http.createServer(app);
 
 let PORT = process.env.PORT || 8080;
@@ -55,7 +57,7 @@ const exchangeName = 'my-exchange';
 const instanceId = process.env.INSTANCE_ID;
 
 // Assume leader is srv1 to start
-let leader = 1; 
+let leader = process.env.LEADER; 
 let leaderTimeout = null;
 
 // Create heartbeat timeout to check if leader is alive
@@ -131,6 +133,7 @@ const leaderElected = () => {
         'instance-id': instanceId,
         'message-type': "leader-elected"
       };
+      // io.to(data.room).emit("leader-elected", {});
 
       value.publish(exchangeName, '', Buffer.from(""), {headers});
       leader = instanceId;
@@ -166,9 +169,12 @@ const consumeUpdateData = (msg) => {
   if(msg.properties.headers["instance-id"] == instanceId) {
     console.log("Received my own room update");
   } else {
-    console.log("Received someone else's message: " + msg.content.toString());
-    // activeRooms = new JSON.parse(msg));
-    // console.log("New Active Rooms: " + activeRooms);
+    console.log("Received someone else's message: ");
+    activeRooms = new Map(JSON.parse(msg.content));
+
+    for(const [k, v] of activeRooms) {
+      console.log(k, v);
+    }
   }
 }
 
@@ -221,7 +227,7 @@ const consumeSendHeartbeat = (msg) => {
     if(heartbeatTimeout != null) {
       clearTimeout(heartbeatTimeout);
     }
-    heartbeatTimeout = setTimeout(initiateElection, 10000);
+    heartbeatTimeout = setTimeout(initiateElection, 20000);
   }
 }
 
@@ -277,7 +283,14 @@ setInterval(sendHeartbeat, 5000);
 
 
 // Room Management
-let activeRooms = new Map();
+let activeRooms = null;
+try {
+  activeRooms = new Map(JSON.parse(fs.readFileSync('/app/data/config.json')));
+  console.log("Active Rooms read in:", activeRooms);
+} catch (error) {
+  console.log(error);
+  activeRooms = new Map();
+}
 
 function createRoom(roomCode) {
   let gameVariables = {
@@ -308,6 +321,17 @@ const sendLobbyToRoom = (room) => {
     Array.from(activeRooms.get(room).players)
   );
   updateData();
+
+  // Write to volume to be accessed by docker containers
+  fs.writeFile('/app/data/config.json', JSON.stringify(activeRooms, (key, value) => {
+    if (value instanceof Map) {
+      return Array.from(value.entries());
+    }
+    return value;
+  }), (err) => {
+    if (err) throw err;
+    console.log('Data written to config.json');
+  });
 
   io.in(room).emit("update-lobby", { lobby: serializableMap, room: room });
 };

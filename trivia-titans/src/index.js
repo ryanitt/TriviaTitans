@@ -9,7 +9,15 @@ import { io } from "socket.io-client";
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 
-const socket = io.connect("http://localhost:8080");
+const [socketValue, setSocketValue] = useState("url"); // Change this to match now
+
+let socket = io.connect(socketValue);
+
+socket.on("leader-elected", (data) => {
+  url = url.replace(/\d+$/, data.leader.toString());
+  setSocketValue(url);
+  socket = io.connect(socketValue);
+});
 
 root.render(
   <MantineProvider
