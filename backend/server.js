@@ -28,7 +28,7 @@ connectClient();
 async function QueryQuestion(room) {
   var db = client.db("triviatitans");
   randomQuestionNum = getRandomInt(2149);
-
+  
   while (activeRooms.get(room).questionsAsked.has(randomQuestionNum)) {
     randomQuestionNum = getRandomInt(2149);
   }
@@ -236,7 +236,7 @@ const consumeSendHeartbeat = (msg) => {
 
 async function initializeMQ() {
   try {
-      await waitTime(7000);
+      await waitTime(10000);
       const conn = await amqp.connect(mqSettings);
       console.log("RabbitMQ connection created...");
       const channel = await conn.createChannel();
@@ -353,19 +353,75 @@ function handleNewPlayer(room, username) {
   activeRooms.set(room, gameVars);
 }
 
+initializeActiveRooms();
+
 //in case server and client run on different urls
 io.on("connection", (socket) => {
+  
+  // Fetching data from the trivia db
+  const fetchData = async (room) => {
+    const response = await QueryQuestion(room);
+    const decodedData = decodeHtmlEntities(response);
+    const type = decodedData["type"];
+
+    const gameVars = activeRooms.get(room);
+
+    if (type === "multiple") {
+      const multipleOptions = [
+        decodedData["correct_answer"],
+        decodedData["incorrect_answers"][0],
+        decodedData["incorrect_answers"][1],
+        decodedData["incorrect_answers"][2],
+      ];
+      const shuffledOptions = shuffleArray(multipleOptions);
+      gameVars.currentQuestion = decodedData["question"];
+      gameVars.answerOptions = shuffledOptions;
+      gameVars.correctAnswer = decodedData["correct_answer"];
+    } else {
+      const booleanOptions = ["True", "False"];
+      gameVars.currentQuestion = decodedData["question"];
+      gameVars.answerOptions = booleanOptions;
+      gameVars.correctAnswer = decodedData["correct_answer"];
+    }
+    activeRooms.set(room, gameVars);
+    updateData();
+  };
+  
+  const requestQuestion = async (data) => {
+    await fetchData(data.room);
+    console.log("(G) Fetched data from db.");
+
+    const gameVars = activeRooms.get(data.room);
+    gameVars.answersReceived = 0;
+    // socket.emit("test", {});
+    io.in(data.room).emit("new-question", {
+      currentQuestion: gameVars.currentQuestion,
+      answerOptions: gameVars.answerOptions,
+      correctAnswer: gameVars.correctAnswer,
+      time: 15,
+    });
+    console.log("(H) New Question is emitted to frontend: ", data.room);
+
+    activeRooms.set(data.room, gameVars);
+    console.log("(J) Set active rooms to new game variables");
+  }
 
   // Setup rooms from config file
-  initializeActiveRooms();
-
   try {
+    let numOfRooms = 0;
     activeRooms.forEach(function(value, key) {
       socket.join(key);
+      requestQuestion({ room: key });
+
+      numOfRooms++;
     });
-    console.log("Rooms created in io", activeRooms);
+    if(numOfRooms > 0) {
+      console.log(numOfRooms, "rooms created in io", activeRooms);
+    }
   } catch (error) {
     console.log("No old rooms to be remade in io");
+    console.log("Active Rooms:", activeRooms);
+    console.log(error);
   }
 
   socket.on("join-room", (data) => {
@@ -410,36 +466,6 @@ io.on("connection", (socket) => {
   });
 
   // Trivia Game Logic
-
-  // Fetching data from the trivia db
-  const fetchData = async (room) => {
-    const response = await QueryQuestion(room);
-    const decodedData = decodeHtmlEntities(response);
-    const type = decodedData["type"];
-
-    const gameVars = activeRooms.get(room);
-
-    if (type === "multiple") {
-      const multipleOptions = [
-        decodedData["correct_answer"],
-        decodedData["incorrect_answers"][0],
-        decodedData["incorrect_answers"][1],
-        decodedData["incorrect_answers"][2],
-      ];
-      const shuffledOptions = shuffleArray(multipleOptions);
-      gameVars.currentQuestion = decodedData["question"];
-      gameVars.answerOptions = shuffledOptions;
-      gameVars.correctAnswer = decodedData["correct_answer"];
-    } else {
-      const booleanOptions = ["True", "False"];
-      gameVars.currentQuestion = decodedData["question"];
-      gameVars.answerOptions = booleanOptions;
-      gameVars.correctAnswer = decodedData["correct_answer"];
-    }
-    activeRooms.set(room, gameVars);
-    updateData();
-  };
-
   // Decode special http characters
   const decodeHtmlEntities = (obj) => {
     if (typeof obj !== "object" || obj === null) {
@@ -476,28 +502,8 @@ io.on("connection", (socket) => {
 
     sendLobbyToRoom(data.room);
   });
-
   // User requests a new question from the database
-  socket.on("request-question", async (data) => {
-    console.log("(F) Requesting Question");
-    await fetchData(data.room);
-    console.log("(G) Fetched data from db.");
-
-    const gameVars = activeRooms.get(data.room);
-    gameVars.answersReceived = 0;
-    // socket.emit("test", {});
-    io.in(data.room).emit("new-question", {
-      currentQuestion: gameVars.currentQuestion,
-      answerOptions: gameVars.answerOptions,
-      correctAnswer: gameVars.correctAnswer,
-      time: 15,
-    });
-    console.log("(H) New Question is emitted to frontend: ", data.room);
-
-    activeRooms.set(data.room, gameVars);
-    console.log("(J) Set active rooms to new game variables");
-
-  });
+  socket.on("request-question", requestQuestion);
 
   // User submits an answer to the server
   // TODO: adjust this function to increment the score based on how fast the user answered
@@ -513,9 +519,8 @@ io.on("connection", (socket) => {
       console.log("Modified Score: ", activeRooms.get(data.room));
     }
 
-    // console.log(
-    //   `answersReceived: ${gameVars.answersReceived}, totalPlayers: ${gameVars.totalPlayers}, correctlyAnswered: ${correctlyAnswered}, data.answerOption: ${data.answerOption}, correctAnswer: ${gameVars.correctAnswer}`
-    // );
+    activeRooms.set(data.room, gameVars);
+    sendLobbyToRoom(data.room);
 
     // If all users answer the question
     if (gameVars.answersReceived >= gameVars.totalPlayers) {
@@ -532,6 +537,7 @@ io.on("connection", (socket) => {
       return;
     }
     activeRooms.set(data.room, gameVars);
+    
     sendLobbyToRoom(data.room);
   });
 
