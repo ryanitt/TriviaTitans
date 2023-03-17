@@ -107,7 +107,7 @@ async function consumeLeaderElected(msg)  {
         let containerName = containerInspect.Name.substring(1).replace('-1', '');;
         let containerInstanceIdEntry = containerInspect.Config.Env.find(str => str.includes('INSTANCE_ID='));
         containerInstanceIdEntry = containerInstanceIdEntry.charAt(containerInstanceIdEntry.length - 1)
-        console.log("VARS", containerName, containerInstanceIdEntry);
+
         // Update the port bindings
         container.stop(function(err, data) {
           if (err) {
@@ -167,10 +167,6 @@ async function consumeLeaderElected(msg)  {
           });
         });
 
-        // inspectingLeaderContainer.update(updatedConfig)
-        // .then(() => console.log('New leader container', msg.properties.headers['instance-id'], 'switched to 8080.'))
-        // .catch((err) => console.error('Failed to change binding of leader container', msg.properties.headers['instance-id'], 'from group:', err));;
-
         getTitanServerContainers();
   
         // sendServerSwitch(msg.properties.headers["instance-id"]);  
@@ -179,44 +175,6 @@ async function consumeLeaderElected(msg)  {
     console.log("ERROR ERROR ERROR LOOK HERE ERROR ERROR ERROR:" + error);
   }
 }
-
-
-// remove port bindings from old leader
-// async function purgeOldBindings()  {
-//   console.log("Purging crashed server bindings");
-  
-//   const updatedConfig = {
-//     "HostConfig": {
-//       "PortBindings": {
-//         "8080/tcp": []
-//       }
-//     } 
-//   }
-
-//   let oldLeaderName = null;
-
-//   containers.then(
-//     async function(value) {
-//       for (const container of value) {
-//         const containerInspect = await d.getContainer(container.Id).inspect();
-//         const env = containerInspect.Config.Env;
-//         if (env.includes('INSTANCE_ID=' + leader)) {
-//           oldLeaderName = containerInspect.Name;
-//           console.log(`Old leader container name: ${oldLeaderName}`);
-//           console.log(`Old leader container ID: ${containerInspect.Id}`);
-//           console.log(`Old leader container environment variables: ${env}`);
-//         }
-//       }
-//       const inspectingOldLeaderContainer = d.getContainer(oldLeaderName);
-//       console.log("Set container to delete as: ", oldLeaderName);
-  
-//       d.getContainer(oldLeaderName).remove({force:true}) 
-//       .then(() => console.log('Container removed from group successfully.'))
-//       .catch((err) => console.error('Failed to remove container from group:', err));
-
-//       getTitanServerContainers();
-//   });
-// }
 
 const mqSettings = {
   protocol: 'amqp',
@@ -230,7 +188,7 @@ const mqSettings = {
 
 async function initializeMQ() {
   try {
-      await waitTime(15000);
+      await waitTime(10000);
       const conn = await amqp.connect(mqSettings);
       console.log("RabbitMQ connection created...");
       const channel = await conn.createChannel();

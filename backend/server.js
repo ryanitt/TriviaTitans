@@ -28,6 +28,7 @@ connectClient();
 async function QueryQuestion(room) {
   var db = client.db("triviatitans");
   randomQuestionNum = getRandomInt(2149);
+
   while (activeRooms.get(room).questionsAsked.has(randomQuestionNum)) {
     randomQuestionNum = getRandomInt(2149);
   }
@@ -47,7 +48,7 @@ function getRandomInt(max) {
 //mongoose.connect(url, { useNewUrlParser: true, useUnifiedTopology: true }).then((result) => console.log("connected to db")).catch((err) => console.log(err));
 const io = socketIo(server, {
   cors: {
-    origin: "http://localhost:3000",
+    origin: "*",
   },
 });
 
@@ -169,12 +170,13 @@ const consumeUpdateData = (msg) => {
   if(msg.properties.headers["instance-id"] == instanceId) {
     console.log("Received my own room update");
   } else {
-    console.log("Received someone else's message: ");
+    console.log("Received someone else's message: " + msg.content);
     activeRooms = new Map(JSON.parse(msg.content));
 
-    for(const [k, v] of activeRooms) {
-      console.log(k, v);
-    }
+    activeRooms.forEach(function(value, key) {
+      activeRooms.get(key).players = new Map(activeRooms.get(key).players);
+      activeRooms.get(key).questionsAsked = new Map(activeRooms.get(key).questionsAsked);
+    });
   }
 }
 
@@ -234,7 +236,7 @@ const consumeSendHeartbeat = (msg) => {
 
 async function initializeMQ() {
   try {
-      await waitTime(15000);
+      await waitTime(7000);
       const conn = await amqp.connect(mqSettings);
       console.log("RabbitMQ connection created...");
       const channel = await conn.createChannel();
@@ -281,15 +283,23 @@ async function initializeMQ() {
 const mqChannel = initializeMQ();
 setInterval(sendHeartbeat, 5000);
 
-
 // Room Management
 let activeRooms = null;
-try {
-  activeRooms = new Map(JSON.parse(fs.readFileSync('/app/data/config.json')));
-  console.log("Active Rooms read in:", activeRooms);
-} catch (error) {
-  console.log(error);
-  activeRooms = new Map();
+
+const initializeActiveRooms = () => {
+  try {
+    activeRooms = new Map(JSON.parse(fs.readFileSync('/app/data/config.json')));
+  
+    activeRooms.forEach(function(value, key) {
+      activeRooms.get(key).players = new Map(activeRooms.get(key).players);
+      activeRooms.get(key).questionsAsked = new Map(activeRooms.get(key).questionsAsked);
+    });
+    console.log("Config file parsed in as initial state");
+    console.log("Parsed rooms:", activeRooms);
+  } catch (error) {
+    console.log("Config file was empty. Initializing empty state");
+    activeRooms = new Map();
+  }
 }
 
 function createRoom(roomCode) {
@@ -332,7 +342,7 @@ const sendLobbyToRoom = (room) => {
     if (err) throw err;
     console.log('Data written to config.json');
   });
-
+  console.log("Sending this lobby to room:", serializableMap);
   io.in(room).emit("update-lobby", { lobby: serializableMap, room: room });
 };
 
@@ -345,6 +355,19 @@ function handleNewPlayer(room, username) {
 
 //in case server and client run on different urls
 io.on("connection", (socket) => {
+
+  // Setup rooms from config file
+  initializeActiveRooms();
+
+  try {
+    activeRooms.forEach(function(value, key) {
+      socket.join(key);
+    });
+    console.log("Rooms created in io", activeRooms);
+  } catch (error) {
+    console.log("No old rooms to be remade in io");
+  }
+
   socket.on("join-room", (data) => {
     if (data.newGame) {
       socket.join(data.room);
@@ -444,26 +467,36 @@ io.on("connection", (socket) => {
 
   // User clicks the "Start Game" button, only accesible to the host
   socket.on("initialize-game", (data) => {
+    console.log("(B) Recieved from frontend. Initializing game in room", data.room);
     io.in(data.room).emit("started-game", {});
     if (!activeRooms.get(data.room).totalPlayersSet) {
       activeRooms.get(data.room).totalPlayersSet = true;
     }
+    console.log("(C) Started Game is emitted to frontend in room", data.room);
+
     sendLobbyToRoom(data.room);
   });
 
   // User requests a new question from the database
   socket.on("request-question", async (data) => {
-    console.log("Requesting Question");
+    console.log("(F) Requesting Question");
     await fetchData(data.room);
+    console.log("(G) Fetched data from db.");
+
     const gameVars = activeRooms.get(data.room);
     gameVars.answersReceived = 0;
+    // socket.emit("test", {});
     io.in(data.room).emit("new-question", {
       currentQuestion: gameVars.currentQuestion,
       answerOptions: gameVars.answerOptions,
       correctAnswer: gameVars.correctAnswer,
       time: 15,
     });
+    console.log("(H) New Question is emitted to frontend: ", data.room);
+
     activeRooms.set(data.room, gameVars);
+    console.log("(J) Set active rooms to new game variables");
+
   });
 
   // User submits an answer to the server
