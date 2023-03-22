@@ -407,7 +407,6 @@ io.on("connection", (socket) => {
   
   const requestQuestion = async (data) => {
     await fetchData(data.room);
-    console.log("(G) Fetched data from db.");
 
     const gameVars = activeRooms.get(data.room);
     gameVars.answersReceived = 0;
@@ -418,10 +417,8 @@ io.on("connection", (socket) => {
       correctAnswer: gameVars.correctAnswer,
       time: 15,
     });
-    console.log("(H) New Question is emitted to frontend: ", data.room);
 
     activeRooms.set(data.room, gameVars);
-    console.log("(J) Set active rooms to new game variables");
   }
 
   // Setup rooms from config file
@@ -454,7 +451,9 @@ io.on("connection", (socket) => {
       socket.broadcast.to(data.room).emit("player-connection", {});
       socket.emit("room-code", data.room);
 
-      sendLobbyToRoom(data.room);
+      setTimeout(() => {
+        sendLobbyToRoom(data.room);
+      }, 400)
     } else {
       // check if the code exists
       if (activeRooms.has(data.room)) {
@@ -487,7 +486,7 @@ io.on("connection", (socket) => {
         socket.emit("room-code", data.room);
         setTimeout(() => {
           sendLobbyToRoom(data.room);
-        }, 100);
+        }, 400);
       } else {
         socket.emit("invalid-code", true);
       }
