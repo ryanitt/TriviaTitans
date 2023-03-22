@@ -63,25 +63,6 @@ async function consumeLeaderElected(msg)  {
   containers = getTitanServerContainers();
   leader = msg.properties.headers["instance-id"];
 
-  // const emptyConfig = {
-  //   "HostConfig": {
-  //     "PortBindings": {
-  //       "8080/tcp": []
-  //     }
-  //   } 
-  // }
-
-  // const updatedConfig = {
-  //   "HostConfig": {
-  //     "PortBindings": {
-  //       "8080/tcp": [{
-  //         "HostIp": '',
-  //         "HostPort": '8080'
-  //       }]
-  //     }
-  //   } 
-  // }
-
   let newLeaderContainer = null;
   try {
     containers.then(
@@ -89,12 +70,7 @@ async function consumeLeaderElected(msg)  {
         for (const container of value) {
           const containerInspect = await d.getContainer(container.Id).inspect();
           const env = containerInspect.Config.Env;
-          // if (env.includes('INSTANCE_ID=' + msg.properties.headers["instance-id"])) {
-          //   console.log(`Leader container name: ${containerInspect.Name}`);
-          //   console.log(`Leader container ID: ${containerInspect.Id}`);
-          //   console.log(`Leader container environment variables: ${env}`);
-          //   newLeaderContainer = container;
-          // }
+
           if (env.includes('INSTANCE_ID=' + leader)) {
             console.log(`Leader container name: ${containerInspect.Name}`);
             console.log(`Leader container ID: ${containerInspect.Id}`);
@@ -107,6 +83,14 @@ async function consumeLeaderElected(msg)  {
         let containerName = containerInspect.Name.substring(1).replace('-1', '');;
         let containerInstanceIdEntry = containerInspect.Config.Env.find(str => str.includes('INSTANCE_ID='));
         containerInstanceIdEntry = containerInstanceIdEntry.charAt(containerInstanceIdEntry.length - 1)
+        
+        console.log("Current Leader Port:", containerInspect.HostConfig['PortBindings']['8080/tcp'][0].HostPort);
+        // Check if leader is already running on correct port
+        if(containerInspect.HostConfig['PortBindings']['8080/tcp'][0].HostPort === '8080') {
+          console.log("Leader server running on correct port binding");
+          getTitanServerContainers();
+          return;
+        }
 
         // Update the port bindings
         container.stop(function(err, data) {
@@ -114,7 +98,8 @@ async function consumeLeaderElected(msg)  {
             console.log(`Error stopping container '${containerName}': ${err.message}`);
             return;
           }
-      
+          
+          sendServerSwitch(containerInstanceIdEntry);
           console.log(`Container '${containerName}' stopped`);
 
           container.remove(function(err, data) {
@@ -168,8 +153,6 @@ async function consumeLeaderElected(msg)  {
         });
 
         getTitanServerContainers();
-  
-        // sendServerSwitch(msg.properties.headers["instance-id"]);  
     });
   } catch (error) {
     console.log("ERROR ERROR ERROR LOOK HERE ERROR ERROR ERROR:" + error);

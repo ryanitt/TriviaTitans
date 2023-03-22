@@ -155,10 +155,12 @@ const leaderElected = () => {
           'message-type': "send-heartbeat"
         };
 
-        value.publish(exchangeName, '', Buffer.from(""), {headers});
+        if(value) {
+          value.publish(exchangeName, '', Buffer.from(""), {headers});
+        }
       },
       function(error) {
-        console.log(error);
+        console.log(error.type);
       }
     );}
   
@@ -170,8 +172,8 @@ const consumeUpdateData = (msg) => {
   if(msg.properties.headers["instance-id"] == instanceId) {
     console.log("Received my own room update");
   } else {
-    console.log("Received someone else's message: " + msg.content);
     activeRooms = new Map(JSON.parse(msg.content));
+    console.log("Updated active rooms with new data: " + [...activeRooms.entries()]);
 
     activeRooms.forEach(function(value, key) {
       activeRooms.get(key).players = new Map(activeRooms.get(key).players);
@@ -213,9 +215,14 @@ const consumeLeaderElected = (msg) => {
 // Recieve server switch update
 const consumeServerSwitch = (msg) => {
   if(msg.properties.headers["leader-instance-id"] == instanceId) {
-    console.log("Server switched to leader and is now running");
+    console.log("Server switching to open leader port...");
   } else {
-    console.log("Leader server switch and is now operational for srv" + msg.properties.headers["leader-instance-id"]);
+    console.log("Leader rebooting on open port 8080...");
+    
+    if(heartbeatTimeout != null) {
+      clearTimeout(heartbeatTimeout);
+    }
+    heartbeatTimeout = setTimeout(initiateElection, 20000);
   }
 }
 
@@ -229,7 +236,7 @@ const consumeSendHeartbeat = (msg) => {
     if(heartbeatTimeout != null) {
       clearTimeout(heartbeatTimeout);
     }
-    heartbeatTimeout = setTimeout(initiateElection, 20000);
+    heartbeatTimeout = setTimeout(initiateElection, 7000);
   }
 }
 
@@ -317,6 +324,16 @@ function createRoom(roomCode) {
 }
 
 const sendLobbyToRoom = (room) => {
+  // Check if room still exists
+  try {
+    const recipientRoom = activeRooms.get(room);
+    if(!recipientRoom) {
+      return;
+    }
+  } catch (error) {
+    return;
+  }
+
   // Check if someone won
   activeRooms.get(room).players.forEach(function (value, key) {
     if (value >= 20) {
@@ -543,10 +560,13 @@ io.on("connection", (socket) => {
 
   socket.on("leave-room", (data) => {
     const gameVars = activeRooms.get(data.room);
-    gameVars.players.delete(data.username);
-    gameVars.totalPlayers--;
-    activeRooms.set(data.room, gameVars);
-    console.log(`Player ${data.username} has left`);
+    if(gameVars) {
+      gameVars.players.delete(data.username);
+      gameVars.totalPlayers--;
+      activeRooms.set(data.room, gameVars);
+      console.log(`Player ${data.username} has left`);
+    }
+    console.log(`Synchronizing lobby data with players...`);
     sendLobbyToRoom(data.room);
 });
 
