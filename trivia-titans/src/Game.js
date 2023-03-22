@@ -16,6 +16,7 @@ import {
 } from "@mantine/core";
 import logo from "./logo-removebg-preview.png";
 import Timer from "./Timer";
+import { Socket } from "socket.io-client";
 
 const Game = (props) => {
   let socket = props.socket;
