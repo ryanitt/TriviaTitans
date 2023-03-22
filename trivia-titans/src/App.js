@@ -22,13 +22,22 @@ const App = (props) => {
   const [room, setRoom] = useState("");
   const roomRef = useRef("");
   const [limitReached, setLimitReached] = useState(false);
+  const [gameRunning, setGameRunning] = useState(false);
   const [invalidCode, setInvalidCode] = useState(false);
+  const [invalidUsername, setInvalidUsername] = useState(false);
   const [isNewGameModalOpen, setIsNewGameModalOpen] = useState(false);
   const [isJoinGameModalOpen, setIsJoinGameModalOpen] = useState(false);
   const [showAlert, setShowAlert] = useState(false);
+  const [errorText, setErrorText] = useState("");
 
   const useJoinGame = () => {
-    if (roomRef.current !== "" && !invalidCode && !limitReached) {
+    if (
+      roomRef.current !== "" &&
+      !invalidCode &&
+      !limitReached &&
+      !gameRunning &&
+      !invalidUsername
+    ) {
       // TODO: if its an invalid code dont send this emit
       appSocket.emit("join-room", {
         username: usernameRef.current,
@@ -53,20 +62,46 @@ const App = (props) => {
     navigate("/game", { state: { username: usernameRef.current } });
   };
 
+  const clearStates = () => {
+    setLimitReached(false);
+    setGameRunning(false);
+    setInvalidCode(false);
+    setShowAlert(false);
+    setInvalidUsername(false);
+    setErrorText("");
+    setUsername("");
+    setRoom("");
+  };
+
   useEffect(() => {
     appSocket.on("join-success", (data) => {
       if (data) navigate("/game", { state: { username: usernameRef.current } });
     });
     appSocket.on("limit-reached", (data) => {
       if (data) setLimitReached(true);
+      setErrorText("Room is full.");
+    });
+    appSocket.on("game-running", (data) => {
+      if (data) setGameRunning(true);
+      setErrorText("Game is already running.");
     });
     appSocket.on("invalid-code", (data) => {
       if (data) setInvalidCode(true);
+      setErrorText("Invalid room code.");
     });
-    appSocket.on("room-code", (data) => {
-      console.log("ROOM CODE:", data);
+    appSocket.on("username-taken", (data) => {
+      if (data) setInvalidUsername(true);
+      setErrorText(`Username ${username} has been taken for this room.`);
     });
-  }, [appSocket, navigate]);
+  }, [appSocket, navigate, username]);
+
+  useEffect(() => {
+    if (errorText !== "") {
+      setTimeout(() => {
+        clearStates();
+      }, 5000);
+    }
+  }, [errorText]);
 
   useEffect(() => {
     if (location.state) {
@@ -112,7 +147,10 @@ const App = (props) => {
         </Button>
         <Modal
           opened={isJoinGameModalOpen}
-          onClose={() => setIsJoinGameModalOpen(!isJoinGameModalOpen)}
+          onClose={() => {
+            setIsJoinGameModalOpen(false);
+            clearStates();
+          }}
           title="Join Game"
         >
           <TextInput
@@ -129,13 +167,21 @@ const App = (props) => {
             onChange={(e) => setRoom(e.currentTarget.value)}
           />
           <Space h="md" />
+          <Text color="red" size="md">
+            {errorText}
+          </Text>
+          <Space h="md" />
           <Center>
             <Button onClick={useJoinGame}>Join Game</Button>
           </Center>
         </Modal>
         <Modal
           opened={isNewGameModalOpen}
-          onClose={() => setIsNewGameModalOpen(!isNewGameModalOpen)}
+          onClose={() => {
+            setIsNewGameModalOpen(false);
+            clearStates();
+          }}
+          title="New Game"
         >
           <TextInput
             label="Username"
