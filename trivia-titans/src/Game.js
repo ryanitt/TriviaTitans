@@ -76,7 +76,7 @@ const Game = (props) => {
       }
   
       return () => clearInterval(intervalRef.current);
-    }, [seconds, props]);
+    }, [props]);
   
     return (
       <div>
