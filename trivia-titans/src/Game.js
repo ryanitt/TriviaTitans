@@ -32,6 +32,7 @@ const Game = (props) => {
   const [winner, setWinner] = useState("");
   const [currentQuestion, setCurrentQuestion] = useState("");
   const [answerOptions, setAnswerOptions] = useState([]);
+  const [answerOptionSelected, setAnswerOptionSelected] = useState("");
   const [correctAnswer, setCorrectAnswer] = useState("");
   const [clicked, setClicked] = useState(false);
   const [timerStarted, setTimerStarted] = useState(false);
@@ -50,6 +51,7 @@ const Game = (props) => {
   const handleAnswerOptionClick = (answerOption) => {
     if (!clicked) {
       setClicked(true);
+      setAnswerOptionSelected(answerOption);
     }
   };
 
@@ -211,7 +213,7 @@ const Game = (props) => {
             socket={socket}
             room={room}
             username={username}
-            answerOption={option}
+            answerOption={answerOptionSelected}
             handleTimer={handleTimer}
             clicked={clicked}
           />
