@@ -6,7 +6,16 @@ function Timer(props) {
   const intervalRef = useRef(null);
 
   useEffect(() => {
-    if (seconds === 0 || props.clicked) {
+    if(props.clicked) {
+      props.handleTimer();
+      console.log("Amount of time left during submission: ", seconds);
+      props.socket.emit("submit-answer", {
+        room: room,
+        username: username,
+        answerOption: answerOption,
+        timeLeft: seconds
+      });
+    } else if (seconds === 0 ) {
       props.handleTimer();
     } else {
       intervalRef.current = setInterval(() => {
