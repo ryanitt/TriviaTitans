@@ -6,6 +6,7 @@ import App from "./App";
 import Game from "./Game";
 import { MantineProvider } from "@mantine/core";
 import { io } from "socket.io-client";
+import { TimerContext } from "./TimerContext"
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 
@@ -17,11 +18,13 @@ root.render(
     withGlobalStyles
     withNormalizeCSS
   >
-    <HashRouter>
-      <Routes>
-        <Route exact path="/" element={<App socket={socket} />} />
-        <Route path="/game" element={<Game socket={socket} />} />
-      </Routes>
-    </HashRouter>
+    <TimerContext>
+      <HashRouter>
+        <Routes>
+          <Route exact path="/" element={<App socket={socket} />} />
+          <Route path="/game" element={<Game socket={socket} />} />
+        </Routes>
+      </HashRouter>
+    </TimerContext>
   </MantineProvider>
 );
