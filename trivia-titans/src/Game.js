@@ -85,8 +85,6 @@ const Game = (props) => {
 
   const arrangeLobby = useCallback(
     (lobby) => {
-      console.log("arranging");
-
       lobbyStatus.current.clear();
       lobbyStatus.current = lobby;
 
@@ -155,7 +153,6 @@ const Game = (props) => {
 
   useEffect(() => {
     socket.on("update-lobby", (data) => {
-      console.log(data.lobby);
       arrangeLobby(new Map(JSON.parse(data.lobby)));
     });
   }, [arrangeLobby, socket]);
