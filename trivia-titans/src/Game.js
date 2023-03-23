@@ -50,11 +50,6 @@ const Game = (props) => {
   const handleAnswerOptionClick = (answerOption) => {
     if (!clicked) {
       setClicked(true);
-      socket.emit("submit-answer", {
-        room: room,
-        username: username,
-        answerOption: answerOption,
-      });
     }
   };
 
@@ -213,6 +208,7 @@ const Game = (props) => {
         {clicked ? null : timerStarted ? (
           <Timer
             initialTime={seconds}
+            socket={socket}
             handleTimer={handleTimer}
             clicked={clicked}
           />

@@ -402,14 +402,15 @@ const shuffleArray = (arr) => {
 
  // Fetching data from the trivia db
  const fetchData = async (room) => {
-  if(!activeRooms.has(room)) {
-    return;
-  }
   const response = await QueryQuestion(room);
   const decodedData = decodeHtmlEntities(response);
   const type = decodedData["type"];
 
   const gameVars = activeRooms.get(room);
+
+  if(!gameVars) {
+    return
+  }
 
   if (type === "multiple") {
     const multipleOptions = [
@@ -576,9 +577,23 @@ io.on("connection", (socket) => {
     gameVars.answersReceived++;
     var correctlyAnswered = data.answerOption === gameVars.correctAnswer;
     if (correctlyAnswered) {
+
+      // Increment the amount of points recieved based on amount of time left
+      let scoreInc = 0;
+      if(data.timeLeft >= 13) {
+        scoreInc = 10;
+      } else if (data.timeLeft >= 11) {
+        scoreInc = 8;
+      } else if (data.timeLeft >= 9) {
+        scoreInc = 5;
+      } else if (data.timeLeft >= 5) {
+        scoreInc = 3;
+      } else {
+        scoreInc = 1;
+      }
       gameVars.players.set(
         data.username,
-        gameVars.players.get(data.username) + 10
+        gameVars.players.get(data.username) + scoreInc
       );
       console.log("Modified Score: ", activeRooms.get(data.room));
     }
