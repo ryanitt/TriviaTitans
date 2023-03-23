@@ -209,6 +209,9 @@ const Game = (props) => {
           <Timer
             initialTime={seconds}
             socket={socket}
+            room={room}
+            username={username}
+            answerOption={option}
             handleTimer={handleTimer}
             clicked={clicked}
           />
