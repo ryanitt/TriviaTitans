@@ -26,6 +26,10 @@ async function connectClient() {
 connectClient();
 
 async function QueryQuestion(room) {
+  if(!activeRooms.has(room)) {
+    return;
+  }
+
   var db = client.db("triviatitans");
   randomQuestionNum = getRandomInt(2149);
   
@@ -232,14 +236,13 @@ const consumeSendHeartbeat = (msg) => {
     console.log("Received my own heartbeat");
   } else {
     console.log("Received heartbeat from leader ", msg.properties.headers["instance-id"]);
-    
+
     if(heartbeatTimeout != null) {
       clearTimeout(heartbeatTimeout);
     }
     heartbeatTimeout = setTimeout(initiateElection, 7000);
   }
 }
-
 
 async function initializeMQ() {
   try {
@@ -371,73 +374,102 @@ function handleNewPlayer(room, username) {
   activeRooms.set(room, gameVars);
 }
 
+// Trivia Game Logic
+// Decode special http characters
+const decodeHtmlEntities = (obj) => {
+  if (typeof obj !== "object" || obj === null) {
+    return obj;
+  }
+  const decodedObj = {};
+  for (const [key, value] of Object.entries(obj)) {
+    decodedObj[key] = decodeHtmlEntities(value);
+    if (typeof decodedObj[key] === "string") {
+      decodedObj[key] = he.decode(decodedObj[key]);
+    }
+  }
+  return decodedObj;
+};
+
+// shuffle answers for choosing
+const shuffleArray = (arr) => {
+  const shuffledArr = [...arr];
+  for (let i = shuffledArr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffledArr[i], shuffledArr[j]] = [shuffledArr[j], shuffledArr[i]];
+  }
+  return shuffledArr;
+};
+
+ // Fetching data from the trivia db
+ const fetchData = async (room) => {
+  if(!activeRooms.has(room)) {
+    return;
+  }
+  const response = await QueryQuestion(room);
+  const decodedData = decodeHtmlEntities(response);
+  const type = decodedData["type"];
+
+  const gameVars = activeRooms.get(room);
+
+  if (type === "multiple") {
+    const multipleOptions = [
+      decodedData["correct_answer"],
+      decodedData["incorrect_answers"][0],
+      decodedData["incorrect_answers"][1],
+      decodedData["incorrect_answers"][2],
+    ];
+    const shuffledOptions = shuffleArray(multipleOptions);
+    gameVars.currentQuestion = decodedData["question"];
+    gameVars.answerOptions = shuffledOptions;
+    gameVars.correctAnswer = decodedData["correct_answer"];
+  } else {
+    const booleanOptions = ["True", "False"];
+    gameVars.currentQuestion = decodedData["question"];
+    gameVars.answerOptions = booleanOptions;
+    gameVars.correctAnswer = decodedData["correct_answer"];
+  }
+  activeRooms.set(room, gameVars);
+  updateData();
+};
+
+const requestQuestion = async (data) => {
+  await fetchData(data.room);
+
+  const gameVars = activeRooms.get(data.room);
+  gameVars.answersReceived = 0;
+  // socket.emit("test", {});
+  io.in(data.room).emit("new-question", {
+    currentQuestion: gameVars.currentQuestion,
+    answerOptions: gameVars.answerOptions,
+    correctAnswer: gameVars.correctAnswer,
+    time: 15,
+  });
+
+  activeRooms.set(data.room, gameVars);
+}
+
 initializeActiveRooms();
 
 //in case server and client run on different urls
 io.on("connection", (socket) => {
-  
-  // Fetching data from the trivia db
-  const fetchData = async (room) => {
-    const response = await QueryQuestion(room);
-    const decodedData = decodeHtmlEntities(response);
-    const type = decodedData["type"];
-
-    const gameVars = activeRooms.get(room);
-
-    if (type === "multiple") {
-      const multipleOptions = [
-        decodedData["correct_answer"],
-        decodedData["incorrect_answers"][0],
-        decodedData["incorrect_answers"][1],
-        decodedData["incorrect_answers"][2],
-      ];
-      const shuffledOptions = shuffleArray(multipleOptions);
-      gameVars.currentQuestion = decodedData["question"];
-      gameVars.answerOptions = shuffledOptions;
-      gameVars.correctAnswer = decodedData["correct_answer"];
-    } else {
-      const booleanOptions = ["True", "False"];
-      gameVars.currentQuestion = decodedData["question"];
-      gameVars.answerOptions = booleanOptions;
-      gameVars.correctAnswer = decodedData["correct_answer"];
-    }
-    activeRooms.set(room, gameVars);
-    updateData();
-  };
-  
-  const requestQuestion = async (data) => {
-    await fetchData(data.room);
-
-    const gameVars = activeRooms.get(data.room);
-    gameVars.answersReceived = 0;
-    // socket.emit("test", {});
-    io.in(data.room).emit("new-question", {
-      currentQuestion: gameVars.currentQuestion,
-      answerOptions: gameVars.answerOptions,
-      correctAnswer: gameVars.correctAnswer,
-      time: 15,
-    });
-
-    activeRooms.set(data.room, gameVars);
-  }
-
   // Setup rooms from config file
   try {
     let numOfRooms = 0;
     activeRooms.forEach(function(value, key) {
       socket.join(key);
-      requestQuestion({ room: key });
-
       numOfRooms++;
     });
     if(numOfRooms > 0) {
       console.log(numOfRooms, "rooms created in io", activeRooms);
+      console.log("Requesting frontend to rejoin games...")
+      io.sockets.emit("request-rejoin", {})
     }
   } catch (error) {
     console.log("No old rooms to be remade in io");
     console.log("Active Rooms:", activeRooms);
     console.log(error);
   }
+
 
   socket.on("join-room", (data) => {
     if (data.newGame) {
@@ -447,13 +479,14 @@ io.on("connection", (socket) => {
       handleNewPlayer(data.room, data.username);
       console.log(`${data.username} has connected to ${data.room}`);
       socket.emit("assign-host", true);
-      socket.emit("player-connection", {});
-      socket.broadcast.to(data.room).emit("player-connection", {});
       socket.emit("room-code", data.room);
 
       setTimeout(() => {
         sendLobbyToRoom(data.room);
       }, 400)
+      setTimeout(() => {
+        sendLobbyToRoom(data.room);
+      }, 2000)
     } else {
       // check if the code exists
       if (activeRooms.has(data.room)) {
@@ -481,43 +514,46 @@ io.on("connection", (socket) => {
 
         socket.emit("join-success", true);
         socket.broadcast.to(data.room).emit("join-success", true);
-        socket.emit("player-connection", {});
-        socket.broadcast.to(data.room).emit("player-connection", {});
         socket.emit("room-code", data.room);
         setTimeout(() => {
           sendLobbyToRoom(data.room);
         }, 400);
+        setTimeout(() => {
+          sendLobbyToRoom(data.room);
+        }, 2000)
       } else {
         socket.emit("invalid-code", true);
       }
     }
   });
+ 
+  socket.on("rejoin-room", (data) => {
+    console.log("Rejoining room with data:", data);
 
-  // Trivia Game Logic
-  // Decode special http characters
-  const decodeHtmlEntities = (obj) => {
-    if (typeof obj !== "object" || obj === null) {
-      return obj;
-    }
-    const decodedObj = {};
-    for (const [key, value] of Object.entries(obj)) {
-      decodedObj[key] = decodeHtmlEntities(value);
-      if (typeof decodedObj[key] === "string") {
-        decodedObj[key] = he.decode(decodedObj[key]);
+    if (activeRooms.has(data.room)) {
+      socket.leaveAll();
+      socket.join(data.room);
+      socket.emit("room-code", data.room);
+      
+      if (activeRooms.get(data.room).gameRunning) {
+        try {
+          requestQuestion({ room: data.room });
+        } catch (error) {
+          console.log(error);
+        }
       }
+      setTimeout(() => {
+        sendLobbyToRoom(data.room);
+      }, 400);
+      setTimeout(() => {
+        sendLobbyToRoom(data.room);
+      }, 2000)
+    } else {
+      console.log("Active rooms did not find", data.room);
+      console.log("Current Active Rooms is this:", activeRooms);
+      socket.emit("invalid-code", true);
     }
-    return decodedObj;
-  };
-
-  // shuffle answers for choosing
-  const shuffleArray = (arr) => {
-    const shuffledArr = [...arr];
-    for (let i = shuffledArr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffledArr[i], shuffledArr[j]] = [shuffledArr[j], shuffledArr[i]];
-    }
-    return shuffledArr;
-  };
+  });
 
   // User clicks the "Start Game" button, only accesible to the host
   socket.on("initialize-game", (data) => {
@@ -534,6 +570,9 @@ io.on("connection", (socket) => {
   // TODO: adjust this function to increment the score based on how fast the user answered
   socket.on("submit-answer", async (data) => {
     const gameVars = activeRooms.get(data.room);
+    if(!gameVars) {
+      return;
+    }
     gameVars.answersReceived++;
     var correctlyAnswered = data.answerOption === gameVars.correctAnswer;
     if (correctlyAnswered) {
@@ -586,7 +625,7 @@ io.on("connection", (socket) => {
     io.to(data.room).emit("room-deleted", {});
     updateData();
   });
-});
+})
 
 // start server and listen for current port
 server.listen(PORT, (err) => {
