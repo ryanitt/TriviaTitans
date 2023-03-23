@@ -9,10 +9,11 @@ function Timer(props) {
     if(props.clicked) {
       props.handleTimer();
       console.log("Amount of time left during submission: ", seconds);
+      option = props.getAnswerOption();
       props.socket.emit("submit-answer", {
         room: props.room,
         username: props.username,
-        answerOption: props.answerOption,
+        answerOption: option,
         timeLeft: seconds
       });
     } else if (seconds === 0 ) {
@@ -28,7 +29,7 @@ function Timer(props) {
     }
 
     return () => clearInterval(intervalRef.current);
-  }, [seconds]);
+  }, [seconds, props]);
 
   return (
     <div>
