@@ -7,15 +7,15 @@ function Timer(props) {
 
   useEffect(() => {
     if(props.clicked) {
-      props.handleTimer();
       console.log("Amount of time left during submission: ", seconds);
-      option = props.getAnswerOption();
+      let option = props.getAnswerOption("");
       props.socket.emit("submit-answer", {
         room: props.room,
         username: props.username,
         answerOption: option,
         timeLeft: seconds
       });
+      props.handleTimer();
     } else if (seconds === 0 ) {
       props.handleTimer();
     } else {
