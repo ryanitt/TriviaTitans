@@ -1,5 +1,5 @@
 import "./App.css";
-import { useState, useEffect, useRef, useCallback, useContext } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   AppShell,
@@ -15,8 +15,6 @@ import {
   UnstyledButton,
 } from "@mantine/core";
 import logo from "./logo-removebg-preview.png";
-import Timer from "./Timer";
-import { TimerContext } from "./TimerContext";
 
 const Game = (props) => {
   let socket = props.socket;
@@ -38,7 +36,6 @@ const Game = (props) => {
   const [seconds, setSeconds] = useState(15);
   const { state } = useLocation();
   const { username } = state;
-  const timerSeconds = useContext(TimerContext);
 
   /********* Component functions /*********/
 
@@ -51,17 +48,49 @@ const Game = (props) => {
   const handleAnswerOptionClick = (answerOption) => {
     if (!clicked) {
       setClicked(true);
-      console.log(room, username, answerOption, timerSeconds);
+      console.log(room, username, answerOption, seconds);
       socket.emit("submit-answer", {
         room: room,
         username: username,
         answerOption: answerOption,
-        timeLeft: timerSeconds
+        timeLeft: seconds
       });
     }
   };
 
-  // timer manipulation
+  // Timer
+  function Timer(props) {
+    const intervalRef = useRef(null);
+  
+    useEffect(() => {
+      if (seconds === 0 || props.clicked ) {
+        props.handleTimer();
+      } else {
+        intervalRef.current = setInterval(() => {
+          if (seconds === 0) {
+            clearInterval(intervalRef.current);
+          } else {
+            setSeconds(seconds - 1);
+          }
+        }, 1000);
+      }
+  
+      return () => clearInterval(intervalRef.current);
+    }, [seconds, props]);
+  
+    return (
+      <TimerContext.Provider value={seconds}>
+        <div>
+          <Card bg="#393f4a" shadow="sm" radius="md" sx={{ width: 100 }}>
+            <Text size="xl" fw={500} ta="center">
+              {seconds.toLocaleString("en-US", { minimumIntegerDigits: 2 })}
+            </Text>
+          </Card>
+        </div>
+      </TimerContext.Provider>
+    );
+  }
+
   const handleTimer = () => {
     setClicked(true);
     setTimerStarted(false);
