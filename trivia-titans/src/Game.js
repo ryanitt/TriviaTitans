@@ -32,7 +32,7 @@ const Game = (props) => {
   const [winner, setWinner] = useState("");
   const [currentQuestion, setCurrentQuestion] = useState("");
   const [answerOptions, setAnswerOptions] = useState([]);
-  const [answerOptionSelected, setAnswerOptionsSelected] = useState("");
+  var answerOptionSelected = "";
   const [correctAnswer, setCorrectAnswer] = useState("");
   const [clicked, setClicked] = useState(false);
   const [timerStarted, setTimerStarted] = useState(false);
@@ -51,7 +51,7 @@ const Game = (props) => {
   const handleAnswerOptionClick = (answerOption) => {
     if (!clicked) {
       setClicked(true);
-      setAnswerOptionsSelected(answerOption);
+      answerOptionSelected = answerOption;
       handleSubmission(13);
     }
   };
