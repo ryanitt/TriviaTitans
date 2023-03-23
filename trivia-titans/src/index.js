@@ -17,13 +17,11 @@ root.render(
     withGlobalStyles
     withNormalizeCSS
   >
-    <TimerContext>
-      <HashRouter>
-        <Routes>
-          <Route exact path="/" element={<App socket={socket} />} />
-          <Route path="/game" element={<Game socket={socket} />} />
-        </Routes>
-      </HashRouter>
-    </TimerContext>
+    <HashRouter>
+      <Routes>
+        <Route exact path="/" element={<App socket={socket} />} />
+        <Route path="/game" element={<Game socket={socket} />} />
+      </Routes>
+    </HashRouter>
   </MantineProvider>
 );
