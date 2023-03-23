@@ -32,7 +32,6 @@ const Game = (props) => {
   const [winner, setWinner] = useState("");
   const [currentQuestion, setCurrentQuestion] = useState("");
   const [answerOptions, setAnswerOptions] = useState([]);
-  var answerOptionSelected = "";
   const [correctAnswer, setCorrectAnswer] = useState("");
   const [clicked, setClicked] = useState(false);
   const [timerStarted, setTimerStarted] = useState(false);
@@ -52,8 +51,13 @@ const Game = (props) => {
   const handleAnswerOptionClick = (answerOption) => {
     if (!clicked) {
       setClicked(true);
-      answerOptionSelected = answerOption;
-      handleSubmission(timerSeconds);
+      console.log(room, username, answerOption, timerSeconds);
+      socket.emit("submit-answer", {
+        room: room,
+        username: username,
+        answerOption: answerOption,
+        timeLeft: timerSeconds
+      });
     }
   };
 
@@ -68,17 +72,6 @@ const Game = (props) => {
       socket.emit("request-question", { room: room });
       setTimerStarted(true);
     }, 3000);
-  };
-
-  const handleSubmission = (seconds) => {
-    console.log(room, username, answerOptionSelected, seconds);
-    socket.emit("submit-answer", {
-      room: room,
-      username: username,
-      answerOption: answerOptionSelected,
-      timeLeft: seconds
-    });
-    handleTimer();
   };
 
   const backToLobby = () => {
