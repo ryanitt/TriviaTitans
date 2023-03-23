@@ -6,11 +6,7 @@ function Timer(props) {
   const intervalRef = useRef(null);
 
   useEffect(() => {
-    if(props.clicked) {
-      console.log("Amount of time left during submission: ", seconds);
-      props.handleSubmission(seconds);
-      
-    } else if (seconds === 0 ) {
+    if (seconds === 0 || props.clicked ) {
       props.handleTimer();
     } else {
       intervalRef.current = setInterval(() => {

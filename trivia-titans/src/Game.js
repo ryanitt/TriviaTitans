@@ -52,6 +52,7 @@ const Game = (props) => {
     if (!clicked) {
       setClicked(true);
       setAnswerOptionsSelected(answerOption);
+      handleSubmission(13);
     }
   };
 
