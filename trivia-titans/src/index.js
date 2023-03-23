@@ -6,7 +6,6 @@ import App from "./App";
 import Game from "./Game";
 import { MantineProvider } from "@mantine/core";
 import { io } from "socket.io-client";
-import { TimerContext } from "./TimerContext"
 
 const root = ReactDOM.createRoot(document.getElementById("root"));
 

@@ -79,15 +79,13 @@ const Game = (props) => {
     }, [seconds, props]);
   
     return (
-      <TimerContext.Provider value={seconds}>
-        <div>
-          <Card bg="#393f4a" shadow="sm" radius="md" sx={{ width: 100 }}>
-            <Text size="xl" fw={500} ta="center">
-              {seconds.toLocaleString("en-US", { minimumIntegerDigits: 2 })}
-            </Text>
-          </Card>
-        </div>
-      </TimerContext.Provider>
+      <div>
+        <Card bg="#393f4a" shadow="sm" radius="md" sx={{ width: 100 }}>
+          <Text size="xl" fw={500} ta="center">
+            {seconds.toLocaleString("en-US", { minimumIntegerDigits: 2 })}
+          </Text>
+        </Card>
+      </div>
     );
   }
 
