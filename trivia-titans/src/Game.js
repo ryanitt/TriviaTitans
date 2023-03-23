@@ -171,6 +171,15 @@ const Game = (props) => {
     });
   }, [winner, socket]);
 
+  useEffect(() => {
+    socket.on("request-rejoin", () => {
+      console.log("YOYOYO ITSA ME MARIO");
+      socket.emit("rejoin-room", {
+        room: room,
+      });
+    });
+  }, [socket, room]);
+
   return (
     <AppShell
       padding="md"
