@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { Card, Text } from "@mantine/core";
+import {TimerContext } from "./TimerContext"
 
 function Timer(props) {
   const [seconds, setSeconds] = useState(props.initialTime);
@@ -22,13 +23,15 @@ function Timer(props) {
   }, [seconds, props]);
 
   return (
-    <div>
-      <Card bg="#393f4a" shadow="sm" radius="md" sx={{ width: 100 }}>
-        <Text size="xl" fw={500} ta="center">
-          {seconds.toLocaleString("en-US", { minimumIntegerDigits: 2 })}
-        </Text>
-      </Card>
-    </div>
+    <TimerContext.Provider value = {seconds}>
+      <div>
+        <Card bg="#393f4a" shadow="sm" radius="md" sx={{ width: 100 }}>
+          <Text size="xl" fw={500} ta="center">
+            {seconds.toLocaleString("en-US", { minimumIntegerDigits: 2 })}
+          </Text>
+        </Card>
+      </div>
+    </TimerContext.Provider>
   );
 }
 

@@ -1,5 +1,5 @@
 import "./App.css";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, useContext } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import {
   AppShell,
@@ -16,7 +16,7 @@ import {
 } from "@mantine/core";
 import logo from "./logo-removebg-preview.png";
 import Timer from "./Timer";
-import { Socket } from "socket.io-client";
+import { TimerContext } from "./TimerContext";
 
 const Game = (props) => {
   let socket = props.socket;
@@ -39,6 +39,7 @@ const Game = (props) => {
   const [seconds, setSeconds] = useState(15);
   const { state } = useLocation();
   const { username } = state;
+  const timerSeconds = useContext(TimerContext);
 
   /********* Component functions /*********/
 
@@ -52,7 +53,7 @@ const Game = (props) => {
     if (!clicked) {
       setClicked(true);
       answerOptionSelected = answerOption;
-      handleSubmission(13);
+      handleSubmission(timerSeconds);
     }
   };
 
@@ -219,7 +220,6 @@ const Game = (props) => {
         {clicked ? null : timerStarted ? (
           <Timer
             initialTime={seconds}
-            handleSubmission={handleSubmission}
             handleTimer={handleTimer}
             clicked={clicked}
           />
