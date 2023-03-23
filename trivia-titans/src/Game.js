@@ -15,8 +15,6 @@ import {
   UnstyledButton,
 } from "@mantine/core";
 import logo from "./logo-removebg-preview.png";
-import Timer from "./Timer";
-import { Socket } from "socket.io-client";
 
 const Game = (props) => {
   let socket = props.socket;
@@ -50,15 +48,47 @@ const Game = (props) => {
   const handleAnswerOptionClick = (answerOption) => {
     if (!clicked) {
       setClicked(true);
+      console.log(room, username, answerOption, seconds);
       socket.emit("submit-answer", {
         room: room,
         username: username,
         answerOption: answerOption,
+        timeLeft: seconds
       });
     }
   };
 
-  // timer manipulation
+  // Timer
+  function Timer(props) {
+    const intervalRef = useRef(null);
+  
+    useEffect(() => {
+      if (seconds === 0 || props.clicked ) {
+        props.handleTimer();
+      } else {
+        intervalRef.current = setInterval(() => {
+          if (seconds === 0) {
+            clearInterval(intervalRef.current);
+          } else {
+            setSeconds(seconds - 1);
+          }
+        }, 1000);
+      }
+  
+      return () => clearInterval(intervalRef.current);
+    }, [props]);
+  
+    return (
+      <div>
+        <Card bg="#393f4a" shadow="sm" radius="md" sx={{ width: 100 }}>
+          <Text size="xl" fw={500} ta="center">
+            {seconds.toLocaleString("en-US", { minimumIntegerDigits: 2 })}
+          </Text>
+        </Card>
+      </div>
+    );
+  }
+
   const handleTimer = () => {
     setClicked(true);
     setTimerStarted(false);
@@ -87,8 +117,6 @@ const Game = (props) => {
 
   const arrangeLobby = useCallback(
     (lobby) => {
-      console.log("arranging");
-
       lobbyStatus.current.clear();
       lobbyStatus.current = lobby;
 
@@ -157,7 +185,6 @@ const Game = (props) => {
 
   useEffect(() => {
     socket.on("update-lobby", (data) => {
-      console.log(data.lobby);
       arrangeLobby(new Map(JSON.parse(data.lobby)));
     });
   }, [arrangeLobby, socket]);
