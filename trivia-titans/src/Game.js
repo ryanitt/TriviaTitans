@@ -53,6 +53,7 @@ const Game = (props) => {
       setClicked(true);
       setAnswerOptionSelected(answerOption);
     }
+    return answerOptionSelected;
   };
 
   // timer manipulation
@@ -213,7 +214,7 @@ const Game = (props) => {
             socket={socket}
             room={room}
             username={username}
-            answerOption={answerOptionSelected}
+            getAnswerOption={handleAnswerOptionClick}
             handleTimer={handleTimer}
             clicked={clicked}
           />

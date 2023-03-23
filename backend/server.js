@@ -576,6 +576,7 @@ io.on("connection", (socket) => {
     }
     gameVars.answersReceived++;
     var correctlyAnswered = data.answerOption === gameVars.correctAnswer;
+    console.log("Correct:", correctlyAnswered, "data:", data);
     if (correctlyAnswered) {
 
       // Increment the amount of points recieved based on amount of time left
