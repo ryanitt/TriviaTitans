@@ -18,13 +18,13 @@ root.render(
     withGlobalStyles
     withNormalizeCSS
   >
-    <TimerContext>
+    <TimerContext.Provider value={0}>
       <HashRouter>
         <Routes>
           <Route exact path="/" element={<App socket={socket} />} />
           <Route path="/game" element={<Game socket={socket} />} />
         </Routes>
       </HashRouter>
-    </TimerContext>
+    </TimerContext.Provider>
   </MantineProvider>
 );
