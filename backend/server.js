@@ -403,11 +403,16 @@ const shuffleArray = (arr) => {
  // Fetching data from the trivia db
  const fetchData = async (room) => {
   const response = await QueryQuestion(room);
+  if(!response) {
+    return
+  }
   const decodedData = decodeHtmlEntities(response);
+  if(!decodedData) {
+    return
+  }
   const type = decodedData["type"];
-
   const gameVars = activeRooms.get(room);
-
+  
   if(!gameVars) {
     return
   }
