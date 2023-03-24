@@ -331,6 +331,7 @@ const sendLobbyToRoom = (room) => {
   try {
     const recipientRoom = activeRooms.get(room);
     if(!recipientRoom) {
+      console.log("Room", room, "isnt in activeRooms so cannot be sent to");
       return;
     }
   } catch (error) {
@@ -637,7 +638,7 @@ io.on("connection", (socket) => {
   socket.on("host-left", (data) => {
     activeRooms.delete(data.room);
     console.log(`Host left the game. Room ${data.room} has been deleted`);
-    io.sockets.sockets.delete(socket.id);
+    socket.leaveAll();
     io.to(data.room).emit("room-deleted", {});
     updateData();
   });
