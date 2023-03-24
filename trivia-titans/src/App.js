@@ -82,7 +82,7 @@ const App = (props) => {
       setErrorText("Room is full.");
     });
     appSocket.on("game-running", (data) => {
-      if (data) setGameRunning(true);
+      if (data) setGameRunning(data);
       setErrorText("Game is already running.");
     });
     appSocket.on("invalid-code", (data) => {

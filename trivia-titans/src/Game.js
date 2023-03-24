@@ -184,6 +184,10 @@ const Game = (props) => {
   });
 
   useEffect(() => {
+    console.log(room, username, isHost);
+  }, [room, username, isHost]);
+
+  useEffect(() => {
     socket.on("update-lobby", (data) => {
       arrangeLobby(new Map(JSON.parse(data.lobby)));
     });
