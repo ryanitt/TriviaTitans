@@ -490,9 +490,6 @@ io.on("connection", (socket) => {
       setTimeout(() => {
         sendLobbyToRoom(data.room);
       }, 400)
-      setTimeout(() => {
-        sendLobbyToRoom(data.room);
-      }, 2000)
     } else {
       // check if the code exists
       if (activeRooms.has(data.room)) {
@@ -524,9 +521,6 @@ io.on("connection", (socket) => {
         setTimeout(() => {
           sendLobbyToRoom(data.room);
         }, 400);
-        setTimeout(() => {
-          sendLobbyToRoom(data.room);
-        }, 2000)
       } else {
         socket.emit("invalid-code", true);
       }

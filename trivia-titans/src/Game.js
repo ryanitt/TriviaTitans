@@ -180,8 +180,13 @@ const Game = (props) => {
   });
 
   socket.on("room-deleted", () => {
+
     navigate("/", { state: isHost ? false : true });
   });
+
+  useEffect(() => {
+    console.log(room, username, isHost);
+  }, [room, username, isHost]);
 
   useEffect(() => {
     socket.on("update-lobby", (data) => {
