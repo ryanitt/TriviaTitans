@@ -440,6 +440,9 @@ const shuffleArray = (arr) => {
 };
 
 const requestQuestion = async (data) => {
+  if(!data || !data.room || !activeRooms.has(data.room)) {
+    return;
+  }
   await fetchData(data.room);
 
   const gameVars = activeRooms.get(data.room);
@@ -520,6 +523,7 @@ io.on("connection", (socket) => {
         socket.broadcast.to(data.room).emit("join-success", true);
         socket.emit("room-code", data.room);
         setTimeout(() => {
+          socket.emit("room-code", data.room);
           sendLobbyToRoom(data.room);
         }, 400);
       } else {
@@ -627,15 +631,34 @@ io.on("connection", (socket) => {
     sendLobbyToRoom(data.room);
   });
 
-  socket.on("leave-room", (data) => {
+  socket.on("leave-room", async (data) => {
     const gameVars = activeRooms.get(data.room);
     if(gameVars) {
       gameVars.players.delete(data.username);
       gameVars.totalPlayers--;
       activeRooms.set(data.room, gameVars);
       console.log(`Player ${data.username} has left`);
+      socket.leaveAll();
     }
     console.log(`Synchronizing lobby data with players...`);
+    sendLobbyToRoom(data.room);
+
+    // Now that 1 player left, recheck if new question required
+    if (gameVars.answersReceived >= gameVars.totalPlayers) {
+      await fetchData(data.room);
+      gameVars.answersReceived = 0;
+      setTimeout(() => {
+        io.in(data.room).emit("new-question", {
+          currentQuestion: gameVars.currentQuestion,
+          answerOptions: gameVars.answerOptions,
+          correctAnswer: gameVars.correctAnswer,
+          time: 15,
+        });
+      }, 3000);
+      return;
+    }
+    activeRooms.set(data.room, gameVars);
+    
     sendLobbyToRoom(data.room);
 });
 
