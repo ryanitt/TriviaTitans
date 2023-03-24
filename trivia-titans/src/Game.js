@@ -180,7 +180,6 @@ const Game = (props) => {
   });
 
   socket.on("room-deleted", () => {
-
     navigate("/", { state: isHost ? false : true });
   });
 
