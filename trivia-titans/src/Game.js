@@ -58,6 +58,13 @@ const Game = (props) => {
     }
   };
 
+  const clearQuestionStates = () => {
+    setWinner("");
+    setCurrentQuestion("");
+    setAnswerOptions([]);
+    setCorrectAnswer("");
+  };
+
   // Timer
   function Timer(props) {
     const intervalRef = useRef(null);
@@ -105,6 +112,7 @@ const Game = (props) => {
     setStartGame(false);
     setEndedGame(false);
     setWinner("");
+    clearQuestionStates();
   };
 
   const handleExit = () => {
@@ -204,7 +212,7 @@ const Game = (props) => {
 
   useEffect(() => {
     socket.on("request-rejoin", () => {
-      console.log("YOYOYO ITSA ME MARIO");
+      clearQuestionStates();
       socket.emit("rejoin-room", {
         room: room,
       });
