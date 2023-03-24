@@ -57,7 +57,6 @@ const io = socketIo(server, {
 });
 
 // RabbitMQ Message Queue connection
-
 const exchangeName = 'my-exchange';
 const instanceId = process.env.INSTANCE_ID;
 
@@ -322,6 +321,7 @@ function createRoom(roomCode) {
     currentQuestion: "",
     correctAnswer: "",
     questionsAsked: new Map(),
+    readyForNewQuestion: true
   };
   activeRooms.set(roomCode, gameVariables);
 }
@@ -440,22 +440,29 @@ const shuffleArray = (arr) => {
 };
 
 const requestQuestion = async (data) => {
-  if(!data || !data.room || !activeRooms.has(data.room)) {
+  if(!data || !data.room || !activeRooms.has(data.room) || !activeRooms.get(data.room).readyForNewQuestion) {
     return;
   }
+
   await fetchData(data.room);
 
   const gameVars = activeRooms.get(data.room);
   gameVars.answersReceived = 0;
   // socket.emit("test", {});
+  console.log("Sending requested question to Room", data.room);
   io.in(data.room).emit("new-question", {
     currentQuestion: gameVars.currentQuestion,
     answerOptions: gameVars.answerOptions,
     correctAnswer: gameVars.correctAnswer,
     time: 15,
   });
-
+  gameVars.readyForNewQuestion = false;
   activeRooms.set(data.room, gameVars);
+
+  setTimeout(() => {
+    gameVars.readyForNewQuestion = true;
+    activeRooms.set(data.room, gameVars);
+  }, 3000);
 }
 
 initializeActiveRooms();
@@ -617,6 +624,7 @@ io.on("connection", (socket) => {
       await fetchData(data.room);
       gameVars.answersReceived = 0;
       setTimeout(() => {
+        console.log("Sending timeout question to Room", data.room);
         io.in(data.room).emit("new-question", {
           currentQuestion: gameVars.currentQuestion,
           answerOptions: gameVars.answerOptions,
@@ -632,6 +640,7 @@ io.on("connection", (socket) => {
   });
 
   socket.on("leave-room", async (data) => {
+
     const gameVars = activeRooms.get(data.room);
     if(gameVars) {
       gameVars.players.delete(data.username);
@@ -644,10 +653,11 @@ io.on("connection", (socket) => {
     sendLobbyToRoom(data.room);
 
     // Now that 1 player left, recheck if new question required
-    if (gameVars.answersReceived >= gameVars.totalPlayers) {
+    if (gameVars?.answersReceived >= gameVars?.totalPlayers) {
       await fetchData(data.room);
       gameVars.answersReceived = 0;
       setTimeout(() => {
+        console.log("Sending timeout leave-game question to Room", data.room);
         io.in(data.room).emit("new-question", {
           currentQuestion: gameVars.currentQuestion,
           answerOptions: gameVars.answerOptions,
