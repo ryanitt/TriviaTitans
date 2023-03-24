@@ -331,6 +331,7 @@ const sendLobbyToRoom = (room) => {
   try {
     const recipientRoom = activeRooms.get(room);
     if(!recipientRoom) {
+      console.log("Room", room, "isnt in activeRooms so cannot be sent to");
       return;
     }
   } catch (error) {
@@ -439,6 +440,9 @@ const shuffleArray = (arr) => {
 };
 
 const requestQuestion = async (data) => {
+  if(!data || !data.room || !activeRooms.has(data.room)) {
+    return;
+  }
   await fetchData(data.room);
 
   const gameVars = activeRooms.get(data.room);
@@ -490,9 +494,6 @@ io.on("connection", (socket) => {
       setTimeout(() => {
         sendLobbyToRoom(data.room);
       }, 400)
-      setTimeout(() => {
-        sendLobbyToRoom(data.room);
-      }, 2000)
     } else {
       // check if the code exists
       if (activeRooms.has(data.room)) {
@@ -501,8 +502,8 @@ io.on("connection", (socket) => {
           console.log("Game is already running.");
           return;
         }
-        // ignore any players beyond 5
-        if (activeRooms.get(data.room).totalPlayers > 5) {
+        // Allow a total of 5 players
+        if (activeRooms.get(data.room).totalPlayers > 4) {
           socket.emit("limit-reached", true);
           console.log("Game limit reached.");
           return;
@@ -522,11 +523,9 @@ io.on("connection", (socket) => {
         socket.broadcast.to(data.room).emit("join-success", true);
         socket.emit("room-code", data.room);
         setTimeout(() => {
+          socket.emit("room-code", data.room);
           sendLobbyToRoom(data.room);
         }, 400);
-        setTimeout(() => {
-          sendLobbyToRoom(data.room);
-        }, 2000)
       } else {
         socket.emit("invalid-code", true);
       }
@@ -563,7 +562,12 @@ io.on("connection", (socket) => {
 
   // User clicks the "Start Game" button, only accesible to the host
   socket.on("initialize-game", (data) => {
+    console.log("Room starting");
     io.in(data.room).emit("started-game", {});
+    const gameVars = activeRooms.get(data.room);
+    gameVars.gameRunning = true;;
+    activeRooms.set(data.room, gameVars);
+    
     if (!activeRooms.get(data.room).totalPlayersSet) {
       activeRooms.get(data.room).totalPlayersSet = true;
     }
@@ -627,15 +631,34 @@ io.on("connection", (socket) => {
     sendLobbyToRoom(data.room);
   });
 
-  socket.on("leave-room", (data) => {
+  socket.on("leave-room", async (data) => {
     const gameVars = activeRooms.get(data.room);
     if(gameVars) {
       gameVars.players.delete(data.username);
       gameVars.totalPlayers--;
       activeRooms.set(data.room, gameVars);
       console.log(`Player ${data.username} has left`);
+      socket.leaveAll();
     }
     console.log(`Synchronizing lobby data with players...`);
+    sendLobbyToRoom(data.room);
+
+    // Now that 1 player left, recheck if new question required
+    if (gameVars.answersReceived >= gameVars.totalPlayers) {
+      await fetchData(data.room);
+      gameVars.answersReceived = 0;
+      setTimeout(() => {
+        io.in(data.room).emit("new-question", {
+          currentQuestion: gameVars.currentQuestion,
+          answerOptions: gameVars.answerOptions,
+          correctAnswer: gameVars.correctAnswer,
+          time: 15,
+        });
+      }, 3000);
+      return;
+    }
+    activeRooms.set(data.room, gameVars);
+    
     sendLobbyToRoom(data.room);
 });
 
@@ -643,7 +666,7 @@ io.on("connection", (socket) => {
   socket.on("host-left", (data) => {
     activeRooms.delete(data.room);
     console.log(`Host left the game. Room ${data.room} has been deleted`);
-    io.sockets.sockets.delete(socket.id);
+    socket.leaveAll();
     io.to(data.room).emit("room-deleted", {});
     updateData();
   });
