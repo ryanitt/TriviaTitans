@@ -499,8 +499,8 @@ io.on("connection", (socket) => {
           console.log("Game is already running.");
           return;
         }
-        // ignore any players beyond 5
-        if (activeRooms.get(data.room).totalPlayers > 5) {
+        // Allow a total of 5 players
+        if (activeRooms.get(data.room).totalPlayers > 4) {
           socket.emit("limit-reached", true);
           console.log("Game limit reached.");
           return;
@@ -558,7 +558,12 @@ io.on("connection", (socket) => {
 
   // User clicks the "Start Game" button, only accesible to the host
   socket.on("initialize-game", (data) => {
+    console.log("Room starting");
     io.in(data.room).emit("started-game", {});
+    const gameVars = activeRooms.get(data.room);
+    gameVars.gameRunning = true;;
+    activeRooms.set(data.room, gameVars);
+    
     if (!activeRooms.get(data.room).totalPlayersSet) {
       activeRooms.get(data.room).totalPlayersSet = true;
     }
