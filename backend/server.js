@@ -57,7 +57,7 @@ const io = socketIo(server, {
 });
 
 // RabbitMQ Message Queue connection
-const exchangeName = 'my-exchange';
+const exchangeName = 'server-exchange';
 const instanceId = process.env.INSTANCE_ID;
 
 // Assume leader is srv1 to start
@@ -547,7 +547,7 @@ io.on("connection", (socket) => {
       socket.join(data.room);
       socket.emit("room-code", data.room);
       
-      if (activeRooms.get(data.room).gameRunning) {
+      if (activeRooms.get(data.room)?.gameRunning) {
         try {
           requestQuestion({ room: data.room });
         } catch (error) {
