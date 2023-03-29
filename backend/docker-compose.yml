@@ -13,7 +13,7 @@ services:
     # environment:
       # OTHER_SERVERS: 2
       # MONGO_URI: mongodb://root:example@database1:27017/
-  docker-daemon:
+  docker-daemon-1:
     build: ./../docker-daemon
     restart: 'no'
     depends_on:
@@ -25,6 +25,24 @@ services:
     environment:
       RABBITMQ_HOST: rabbitmq
       NETWORK_NAME: titan
+      INSTANCE_ID: 1
+      LEADER: 1
+  
+  docker-daemon-2:
+    build: ./../docker-daemon
+    restart: 'no'
+    depends_on:
+      - rabbitmq
+    volumes:
+      - //var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - titan
+    environment:
+      RABBITMQ_HOST: rabbitmq
+      NETWORK_NAME: titan
+      INSTANCE_ID: 2
+      LEADER: 1
+
   srv1:
     build: ./
     restart: 'no'

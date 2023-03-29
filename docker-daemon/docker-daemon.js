@@ -1,30 +1,27 @@
 const amqp = require('amqplib');
-const path = require('node:path');
 
 const Docker = require('dockerode');
 
-const net = process.env.NETWORK_NAME;
-
 const d = new Docker();
 let containers = null;
-let leader = 1;
+let serverLeader = 1;
 
 async function getTitanServerContainers() {
   const containers = await d.listContainers({ all: true });
-  console.log("Active Containers:");
-  for (const container of containers) {
-    const containerId = container.Id;
-    const networkSettings = container.NetworkSettings.Networks;
-    if (networkSettings["titan"]) {
-      d.getContainer(containerId).inspect((err, data) => {
-        const config = data.Config;
-        if(data.Name != "/backend-rabbitmq-1" && data.Name != "/backend-docker-daemon-1") {
-          console.log(data.Name, config.ExposedPorts, data.HostConfig.PortBindings);
-        }
-      });
-    } 
-  }
-  console.log();
+  // console.log("Active Containers:");
+  // for (const container of containers) {
+  //   const containerId = container.Id;
+  //   const networkSettings = container.NetworkSettings.Networks;
+  //   if (networkSettings["titan"]) {
+  //     d.getContainer(containerId).inspect((err, data) => {
+  //       const config = data.Config;
+  //       if(data.Name != "/backend-rabbitmq-1" && data.Name != "/backend-docker-daemon-1") {
+  //         console.log(data.Name, config.ExposedPorts, data.HostConfig.PortBindings);
+  //       }
+  //     });
+  //   } 
+  // }
+  // console.log();
   return containers;
 }
 
@@ -33,23 +30,145 @@ setInterval(() => {
 }, 7000);
 
 // RabbitMQ Message Queue connection
-const exchangeName = 'my-exchange';
+const serverExchangeName = 'server-exchange';
+const daemonExchangeName = 'daemon-exchange';
+
+const instanceId = process.env.INSTANCE_ID;
+
+// Assume leader is srv1 to start
+let leader = process.env.LEADER; 
+let leaderTimeout = null;
+
+// Create heartbeat timeout to check if leader is alive
+let heartbeatTimeout = null;
+
+
 
 // Wait utility function (to allow connection to RabbitMQ service to connect properly)
 function waitTime(time) {
   return new Promise(resolve => setTimeout(resolve, time));
 }
 
+// Publish functions
+
+// Initiate an election for everyone
+const ddInitiateElection = () => {
+  daemonMQChannel.then(
+    function(value) {
+      const headers = { 
+        'instance-id': instanceId,
+        'message-type': "dd-initiate-election"
+      };
+
+      value.publish(daemonExchangeName, '', Buffer.from(""), {headers});
+
+      if(leaderTimeout != null) {
+        clearTimeout(leaderTimeout);
+      }
+      leaderTimeout = setTimeout(ddLeaderElected, 5000);
+
+      console.log("Leader timeout started");
+    },
+    function(error) {
+      console.log(error);
+    }
+  );}
+
+// Tell everyone I am the leader
+const ddLeaderElected = () => {
+  daemonMQChannel.then(
+    function(value) {
+      const headers = { 
+        'instance-id': instanceId,
+        'message-type': "dd-leader-elected"
+      };
+      // io.to(data.room).emit("leader-elected", {});
+
+      value.publish(daemonExchangeName, '', Buffer.from(""), {headers});
+      leader = instanceId;
+    },
+    function(error) {
+      console.log(error);
+    }
+  );}
+  // Send heartbeat if I am the leader
+  const ddSendHeartbeat = () => {
+    if(instanceId != leader) {
+      return;
+    }
+    daemonMQChannel.then(
+      function(value) {
+        const headers = { 
+          'instance-id': instanceId,
+          'message-type': "dd-send-heartbeat"
+        };
+
+        if(value) {
+          value.publish(daemonExchangeName, '', Buffer.from(""), {headers});
+        }
+      },
+      function(error) {
+        console.log(error.type);
+      }
+    );}
+  
+
+// Consume functions
+
+// New leader is trying to be elected
+const consumeDDInitiateElection = (msg) => {
+  if(msg.properties.headers["instance-id"] == instanceId) {
+    console.log("Received my own daemon leader election");
+  } else {
+    console.log("Received someone else's daemon leader election: " + msg.content.toString());
+    
+    if(instanceId < msg.properties.headers["instance-id"]) {
+      ddInitiateElection();
+    } else {
+      if(leaderTimeout != null) {
+        clearTimeout(leaderTimeout);
+      }
+    }
+  }
+}
+// leader has been elected
+const consumeDDLeaderElected = (msg) => {
+  if(msg.properties.headers["instance-id"] == instanceId) {
+    console.log("Received my daemon leader election is successful");
+  } else {
+    console.log("Received someone else's daemon leader election is successful");
+
+    if(leaderTimeout != null) {
+      clearTimeout(leaderTimeout);
+    }
+    leader = msg.properties.headers["instance-id"];
+  }
+}
+
+// consume heartbeat message from leader
+const consumeDDSendHeartbeat = (msg) => {
+  if(msg.properties.headers["instance-id"] == instanceId) {
+    console.log("Received my own daemon leader heartbeat");
+  } else {
+    console.log("Received heartbeat from daemon leader ", msg.properties.headers["instance-id"]);
+
+    if(heartbeatTimeout != null) {
+      clearTimeout(heartbeatTimeout);
+    }
+    heartbeatTimeout = setTimeout(ddInitiateElection, 15000);
+  }
+}
+
 // Send server switch information
 const sendServerSwitch = (leaderInstanceId) => {
-  mqChannel.then(
+  serverMQChannel.then(
     function(value) {
       const headers = { 
         'leader-instance-id': leaderInstanceId,
         'message-type': "server-switch"
       };
 
-      value.publish(exchangeName, '', Buffer.from(""), {headers});
+      value.publish(serverExchangeName, '', Buffer.from(""), {headers});
     },
     function(error) {
       console.log(error);
@@ -58,10 +177,15 @@ const sendServerSwitch = (leaderInstanceId) => {
 
 // leader has been elected
 async function consumeLeaderElected(msg)  {
+
   console.log("Leader election message is received");
 
   containers = getTitanServerContainers();
-  leader = msg.properties.headers["instance-id"];
+  serverLeader = msg.properties.headers["instance-id"];
+ 
+  if(leader != instanceId) {
+    return;
+  }
 
   let newLeaderContainer = null;
   try {
@@ -71,7 +195,7 @@ async function consumeLeaderElected(msg)  {
           const containerInspect = await d.getContainer(container.Id).inspect();
           const env = containerInspect.Config.Env;
 
-          if (env.includes('INSTANCE_ID=' + leader)) {
+          if (env.includes('INSTANCE_ID=' + serverLeader)) {
             console.log(`Leader container name: ${containerInspect.Name}`);
             console.log(`Leader container ID: ${containerInspect.Id}`);
             console.log(`Leader container environment variables: ${env}`);
@@ -84,9 +208,11 @@ async function consumeLeaderElected(msg)  {
         let containerInstanceIdEntry = containerInspect.Config.Env.find(str => str.includes('INSTANCE_ID='));
         containerInstanceIdEntry = containerInstanceIdEntry.charAt(containerInstanceIdEntry.length - 1)
         
-        console.log("Current Leader Port:", containerInspect.HostConfig['PortBindings']['8080/tcp'][0].HostPort);
+        console.log("Current Leader HostConfig:", containerInspect.HostConfig);
+        console.log("Current Leader Port:", containerInspect.HostConfig['PortBindings']?.['8080/tcp']?.[0].HostPort);
+       
         // Check if leader is already running on correct port
-        if(containerInspect.HostConfig['PortBindings']['8080/tcp'][0].HostPort === '8080') {
+        if(containerInspect.HostConfig['PortBindings']?.['8080/tcp']?.[0]?.HostPort === '8080') {
           console.log("Leader server running on correct port binding");
           getTitanServerContainers();
           return;
@@ -169,19 +295,19 @@ const mqSettings = {
   authMechanism: ['PLAIN', 'AMQPLAIN', 'EXTERNAL']
 }
 
-async function initializeMQ() {
+async function initializeServerMQ() {
   try {
       await waitTime(10000);
       const conn = await amqp.connect(mqSettings);
-      console.log("RabbitMQ connection created...");
+      console.log("Server RabbitMQ connection created...");
       const channel = await conn.createChannel();
-      console.log("RabbitMQ channel created...");
+      console.log("Server RabbitMQ channel created...");
 
-      await channel.assertExchange(exchangeName, 'fanout', { durable: false });
+      await channel.assertExchange(serverExchangeName, 'fanout', { durable: false });
 
-      const { queue } = await channel.assertQueue('daemon_queue', {});
-      await channel.bindQueue(queue, exchangeName, '');
-      console.log("Rabbit Message Queue created...");
+      const { queue } = await channel.assertQueue('daemon_server_queue_' + instanceId, {});
+      await channel.bindQueue(queue, serverExchangeName, '');
+      console.log("Server Rabbit Message Queue created...");
 
       channel.consume(queue, (msg) => {
         switch (msg.properties.headers["message-type"]) {
@@ -189,13 +315,13 @@ async function initializeMQ() {
             console.log("Received data update");
             break;
           case "initiate-election":
-            console.log("Received initiate election");
+            console.log("Received server initiate election");
             break;
           case "leader-elected":
             consumeLeaderElected(msg); 
             break;
           case "send-heartbeat":
-            console.log("Received heartbeat");
+            console.log("Received server leader heartbeat");
             break;
           case "server-switch":
             console.log("Server switched to new leader");
@@ -215,4 +341,47 @@ async function initializeMQ() {
   }
 }
 
-const mqChannel = initializeMQ();
+async function initializeDaemonMQ() {
+  try {
+      await waitTime(10000);
+      const conn = await amqp.connect(mqSettings);
+      console.log("Daemon RabbitMQ connection created...");
+      const channel = await conn.createChannel();
+      console.log("Daemon RabbitMQ channel created...");
+
+      await channel.assertExchange(daemonExchangeName, 'fanout', { durable: false });
+
+      const { queue } = await channel.assertQueue('daemon_queue_' + instanceId, {});
+      await channel.bindQueue(queue, daemonExchangeName, '');
+      console.log("Daemon Rabbit Message Queue created...");
+
+      channel.consume(queue, (msg) => {
+        switch (msg.properties.headers["message-type"]) {
+          case "dd-initiate-election":
+            consumeDDInitiateElection(msg);
+            break;
+          case "dd-leader-elected":
+            consumeDDLeaderElected(msg); 
+            break;
+          case "dd-send-heartbeat":
+            consumeDDSendHeartbeat(msg); 
+            break;
+          default:
+            console.log("Unknown message-type: " + msg.properties.headers["message-type"]);
+            break;
+        }
+        channel.ack(msg);
+    
+      }, {noAck: false});
+
+      return channel;
+
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+const serverMQChannel = initializeServerMQ();
+const daemonMQChannel = initializeDaemonMQ();
+
+setInterval(ddSendHeartbeat, 5000);
