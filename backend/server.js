@@ -57,14 +57,8 @@ async function QueryQuestion(room) {
       .limit(-1)
       .skip(randomQuestionNum)
       .next();
-    console.log("Got new question", response);
+    console.log("Got a new question", response);
     if(!response) {
-      const gameVars = activeRooms.get(room);
-      gameVars.currentQuestion = null;
-      gameVars.answerOptions = null;
-      gameVars.correctAnswer = null;
-      activeRooms.set(room, gameVars);
-
       throw new Error("Question cannot be null!");
     }
     return response;
@@ -77,7 +71,6 @@ async function QueryQuestion(room) {
       return QueryQuestion();
     }
   }
-  
 }
 function getRandomInt(max) {
   return Math.floor(Math.random() * max);
@@ -657,8 +650,9 @@ io.on("connection", (socket) => {
     if (gameVars.answersReceived >= gameVars.totalPlayers) {
       await fetchData(data.room);
       gameVars.answersReceived = 0;
-      setTimeout(() => {
+      setTimeout(async () => {
         console.log("Sending timeout question to Room", data.room);
+        await fetchData(data.room);
         io.in(data.room).emit("new-question", {
           currentQuestion: gameVars.currentQuestion,
           answerOptions: gameVars.answerOptions,
