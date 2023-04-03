@@ -18,5 +18,7 @@ COPY . .
 # Expose port to allow clients to connect to server
 EXPOSE 8080
 
+# Populate database with information in questions.json
+
 # Start server
-CMD [ "node", "server.js" ]
+ENTRYPOINT [ "node", "server.js" ]

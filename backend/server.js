@@ -12,14 +12,28 @@ const server = http.createServer(app);
 let PORT = process.env.PORT || 8080;
 
 // MongoDB stuff
-const mongourl =
-  "mongodb+srv://triviatitans:triviatitans123@cluster0.gtvyghr.mongodb.net/?retryWrites=true&w=majority";
+// const mongourl =
+//   "mongodb+srv://triviatitans:triviatitans123@cluster0.gtvyghr.mongodb.net/?retryWrites=true&w=majority";
+const mongourls = ["mongodb+srv://triviatitans:triviatitans123@cluster0.gtvyghr.mongodb.net/?retryWrites=true&w=majority", 
+                  "mongodb+srv://triviatitans:triviatitans123@cluster0.jpzyzmh.mongodb.net/?retryWrites=true&w=majority",
+                  "mongodb+srv://triviatitans:triviatitans123@cluster0.b27r3yz.mongodb.net/?retryWrites=true&w=majority"];
+let dbNum = 0;
+// const mongourl = "mongodb://127.0.0.1:27017/";
+
 const { MongoClient } = require("mongodb");
-const client = new MongoClient(mongourl);
+let client = null;
+
 async function connectClient() {
   try {
-    await client.connect();
+    console.log("Attempting to connect to DB", dbNum);
+    client = await new MongoClient(mongourls[dbNum], { useNewUrlParser: true }).connect();
+    console.log("Successfully connected to DB", dbNum);
   } catch (err) {
+    if(dbNum < 2) {
+      console.log("Failed attempt to connect to DB", dbNum);
+      dbNum++;
+      connectClient();
+    }
     console.log(err);
   }
 }
@@ -29,21 +43,41 @@ async function QueryQuestion(room) {
   if(!activeRooms.has(room)) {
     return;
   }
-
-  var db = client.db("triviatitans");
-  randomQuestionNum = getRandomInt(2149);
-  
-  while (activeRooms.get(room).questionsAsked.has(randomQuestionNum)) {
+  try {
+    var db = client.db("triviatitans");
     randomQuestionNum = getRandomInt(2149);
+    
+    while (activeRooms.get(room).questionsAsked.has(randomQuestionNum)) {
+      randomQuestionNum = getRandomInt(2149);
+    }
+    activeRooms.get(room).questionsAsked.set(randomQuestionNum, 1);
+    response = await db
+      .collection("questions")
+      .find()
+      .limit(-1)
+      .skip(randomQuestionNum)
+      .next();
+    console.log("Got new question", response);
+    if(!response) {
+      const gameVars = activeRooms.get(room);
+      gameVars.currentQuestion = null;
+      gameVars.answerOptions = null;
+      gameVars.correctAnswer = null;
+      activeRooms.set(room, gameVars);
+
+      throw new Error("Question cannot be null!");
+    }
+    return response;
+  } catch (error) {
+
+    console.log("Question could not be retrieved from DB", dbNum);
+    if(dbNum < 2) {
+      dbNum++;
+      connectClient();
+      return QueryQuestion();
+    }
   }
-  activeRooms.get(room).questionsAsked.set(randomQuestionNum, 1);
-  response = await db
-    .collection("questions")
-    .find()
-    .limit(-1)
-    .skip(randomQuestionNum)
-    .next();
-  return response;
+  
 }
 function getRandomInt(max) {
   return Math.floor(Math.random() * max);

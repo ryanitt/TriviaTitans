@@ -180,11 +180,16 @@ const Game = (props) => {
   });
 
   socket.on("new-question", (data) => {
-    setCurrentQuestion(data.currentQuestion);
-    setAnswerOptions(data.answerOptions);
-    setCorrectAnswer(data.correctAnswer);
-    setSeconds(data.time);
-    setClicked(false);
+    if(data.currentQuestion)
+      setCurrentQuestion(data.currentQuestion);
+    if(data.answerOptions)
+      setAnswerOptions(data.answerOptions);
+    if(data.correctAnswer)
+      setCorrectAnswer(data.correctAnswer);
+    if(data.time) {
+      setSeconds(data.time);
+      setClicked(false);
+    }
   });
 
   socket.on("room-deleted", () => {
