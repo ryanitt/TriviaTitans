@@ -185,6 +185,7 @@ const Game = (props) => {
     setCorrectAnswer(data.correctAnswer);
     setSeconds(data.time);
     setClicked(false);
+
   });
 
   socket.on("room-deleted", () => {
