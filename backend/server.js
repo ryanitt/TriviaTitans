@@ -504,8 +504,8 @@ io.on("connection", (socket) => {
       numOfRooms++;
     });
     if(numOfRooms > 0) {
-      console.log(numOfRooms, "rooms created in io", activeRooms);
-      console.log("Requesting frontend to rejoin games...")
+      // console.log(numOfRooms, "rooms created in io", activeRooms);
+      // console.log("Requesting frontend to rejoin games...")
       io.sockets.emit("request-rejoin", {})
     }
   } catch (error) {
@@ -567,7 +567,7 @@ io.on("connection", (socket) => {
   });
  
   socket.on("rejoin-room", (data) => {
-    console.log("Rejoining room with data:", data);
+    // console.log("Rejoining room with data:", data);
 
     if (activeRooms.has(data.room)) {
       socket.leaveAll();
