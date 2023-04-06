@@ -38,7 +38,10 @@ const App = (props) => {
       !gameRunning &&
       !invalidUsername
     ) {
-      // TODO: if its an invalid code dont send this emit
+      if (username === "" || username === null) {
+        setErrorText("Please enter a username.");
+        return;
+      }
       appSocket.emit("join-room", {
         username: usernameRef.current,
         room: roomRef.current,
@@ -50,6 +53,10 @@ const App = (props) => {
   };
 
   const handleNewGame = () => {
+    if (username === "" || username === null) {
+      setErrorText("Please enter a username.");
+      return;
+    }
     let generatedRoom = Math.floor(1000 + Math.random() * 9000).toString();
 
     roomRef.current = generatedRoom;
@@ -69,8 +76,6 @@ const App = (props) => {
     setShowAlert(false);
     setInvalidUsername(false);
     setErrorText("");
-    setUsername("");
-    setRoom("");
   };
 
   useEffect(() => {
@@ -190,6 +195,10 @@ const App = (props) => {
             onChange={(e) => setUsername(e.currentTarget.value)}
             required
           />
+          <Space h="md" />
+          <Text color="red" size="md">
+            {errorText}
+          </Text>
           <Space h="md" />
           <Center>
             <Button onClick={handleNewGame}>Create Game</Button>
