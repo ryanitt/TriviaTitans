@@ -32,6 +32,7 @@ const Game = (props) => {
   const [answerOptions, setAnswerOptions] = useState([]);
   const [correctAnswer, setCorrectAnswer] = useState("");
   const [clicked, setClicked] = useState(false);
+  const [allPlayersAnswered, setAllPlayersAnswered] = useState(false);
   const [timerStarted, setTimerStarted] = useState(false);
   const [seconds, setSeconds] = useState(15);
   const { state } = useLocation();
@@ -178,6 +179,14 @@ const Game = (props) => {
     setTimerStarted(true);
   });
 
+  socket.on("all-players-answered", () => {
+    // set a message that says all players answered
+    setAllPlayersAnswered(true);
+    setTimeout(() => {
+      setAllPlayersAnswered(false);
+    }, 3000);
+  });
+
   socket.on("new-question", (data) => {
     setTimerStarted(true);
     setCurrentQuestion(data.currentQuestion);
@@ -249,7 +258,9 @@ const Game = (props) => {
       }
     >
       <Center>
-        {timerStarted ? (
+        {allPlayersAnswered ? (
+          <Text>All players answered!</Text>
+        ) : timerStarted ? (
           <Timer initialTime={seconds} handleTimer={handleTimer} />
         ) : null}
       </Center>

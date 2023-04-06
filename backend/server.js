@@ -695,6 +695,7 @@ io.on("connection", (socket) => {
     ) {
       await fetchData(data.room);
       gameVars.answersReceived = 0;
+      io.in(data.room).emit("all-players-answered", {});
       setTimeout(async () => {
         console.log("Sending timeout question to Room", data.room);
         await fetchData(data.room);
@@ -731,6 +732,7 @@ io.on("connection", (socket) => {
     ) {
       await fetchData(data.room);
       gameVars.answersReceived = 0;
+      io.in(data.room).emit("all-players-answered", {});
       setTimeout(() => {
         console.log("Sending timeout leave-game question to Room", data.room);
         io.in(data.room).emit("new-question", {
