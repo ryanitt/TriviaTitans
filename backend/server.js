@@ -2,8 +2,8 @@ const express = require("express");
 const socketIo = require("socket.io");
 const http = require("http");
 const he = require("he");
-const amqp = require('amqplib');
-const fs = require('fs');
+const amqp = require("amqplib");
+const fs = require("fs");
 
 const app = express();
 
@@ -14,9 +14,11 @@ let PORT = process.env.PORT || 8080;
 // MongoDB stuff
 // const mongourl =
 //   "mongodb+srv://triviatitans:triviatitans123@cluster0.gtvyghr.mongodb.net/?retryWrites=true&w=majority";
-const mongourls = ["mongodb+srv://triviatitans:triviatitans123@cluster0.gtvyghr.mongodb.net/?retryWrites=true&w=majority", 
-                  "mongodb+srv://triviatitans:triviatitans123@cluster0.jpzyzmh.mongodb.net/?retryWrites=true&w=majority",
-                  "mongodb+srv://triviatitans:triviatitans123@cluster0.b27r3yz.mongodb.net/?retryWrites=true&w=majority"];
+const mongourls = [
+  "mongodb+srv://triviatitans:triviatitans123@cluster0.gtvyghr.mongodb.net/?retryWrites=true&w=majority",
+  "mongodb+srv://triviatitans:triviatitans123@cluster0.jpzyzmh.mongodb.net/?retryWrites=true&w=majority",
+  "mongodb+srv://triviatitans:triviatitans123@cluster0.b27r3yz.mongodb.net/?retryWrites=true&w=majority",
+];
 let dbNum = 0;
 // const mongourl = "mongodb://127.0.0.1:27017/";
 
@@ -26,10 +28,12 @@ let client = null;
 async function connectClient() {
   try {
     console.log("Attempting to connect to DB", dbNum);
-    client = await new MongoClient(mongourls[dbNum], { useNewUrlParser: true }).connect();
+    client = await new MongoClient(mongourls[dbNum], {
+      useNewUrlParser: true,
+    }).connect();
     console.log("Successfully connected to DB", dbNum);
   } catch (err) {
-    if(dbNum < 2) {
+    if (dbNum < 2) {
       console.log("Failed attempt to connect to DB", dbNum);
       dbNum++;
       connectClient();
@@ -40,13 +44,13 @@ async function connectClient() {
 connectClient();
 
 async function QueryQuestion(room) {
-  if(!activeRooms.has(room)) {
+  if (!activeRooms.has(room)) {
     return;
   }
   try {
     var db = client.db("triviatitans");
     randomQuestionNum = getRandomInt(2149);
-    
+
     while (activeRooms.get(room).questionsAsked.has(randomQuestionNum)) {
       randomQuestionNum = getRandomInt(2149);
     }
@@ -58,14 +62,13 @@ async function QueryQuestion(room) {
       .skip(randomQuestionNum)
       .next();
     console.log("Got a new question", response);
-    if(!response) {
+    if (!response) {
       throw new Error("Question cannot be null!");
     }
     return response;
   } catch (error) {
-
     console.log("Question could not be retrieved from DB", dbNum);
-    if(dbNum < 2) {
+    if (dbNum < 2) {
       dbNum++;
       connectClient();
       return QueryQuestion();
@@ -84,11 +87,11 @@ const io = socketIo(server, {
 });
 
 // RabbitMQ Message Queue connection
-const exchangeName = 'server-exchange';
+const exchangeName = "server-exchange";
 const instanceId = process.env.INSTANCE_ID;
 
 // Assume leader is srv1 to start
-let leader = process.env.LEADER; 
+let leader = process.env.LEADER;
 let leaderTimeout = null;
 
 // Create heartbeat timeout to check if leader is alive
@@ -98,193 +101,213 @@ console.log(instanceId);
 
 // Wait utility function (to allow connection to RabbitMQ service to connect properly)
 function waitTime(time) {
-  return new Promise(resolve => setTimeout(resolve, time));
+  return new Promise((resolve) => setTimeout(resolve, time));
 }
 
 const mqSettings = {
-  protocol: 'amqp',
-  hostname: 'rabbitmq',
+  protocol: "amqp",
+  hostname: "rabbitmq",
   port: 5672,
-  username: 'guest',
-  password: 'guest',
-  vhost: '/',
-  authMechanism: ['PLAIN', 'AMQPLAIN', 'EXTERNAL']
-}
+  username: "guest",
+  password: "guest",
+  vhost: "/",
+  authMechanism: ["PLAIN", "AMQPLAIN", "EXTERNAL"],
+};
 
 // Publish functions
 
 // Send active rooms to everyone
 const updateData = () => {
   mqChannel.then(
-    function(value) {
-      const headers = { 
-        'instance-id': instanceId,
-        'message-type': "data-update"
+    function (value) {
+      const headers = {
+        "instance-id": instanceId,
+        "message-type": "data-update",
       };
 
-      value.publish(exchangeName, '', Buffer.from(JSON.stringify(activeRooms, (key, value) => {
-        if (value instanceof Map) {
-          return Array.from(value.entries());
-        }
-        return value;
-      })), {headers});
+      value.publish(
+        exchangeName,
+        "",
+        Buffer.from(
+          JSON.stringify(activeRooms, (key, value) => {
+            if (value instanceof Map) {
+              return Array.from(value.entries());
+            }
+            return value;
+          })
+        ),
+        { headers }
+      );
     },
-    function(error) {
+    function (error) {
       console.log(error);
     }
   );
-}
+};
 // Initiate an election for everyone
 const initiateElection = () => {
   mqChannel.then(
-    function(value) {
-      const headers = { 
-        'instance-id': instanceId,
-        'message-type': "initiate-election"
+    function (value) {
+      const headers = {
+        "instance-id": instanceId,
+        "message-type": "initiate-election",
       };
 
-      value.publish(exchangeName, '', Buffer.from(""), {headers});
+      value.publish(exchangeName, "", Buffer.from(""), { headers });
 
-      if(leaderTimeout != null) {
+      if (leaderTimeout != null) {
         clearTimeout(leaderTimeout);
       }
       leaderTimeout = setTimeout(leaderElected, 5000);
 
       console.log("Leader timeout started");
     },
-    function(error) {
+    function (error) {
       console.log(error);
     }
-  );}
+  );
+};
 // Tell everyone I am the leader
 const leaderElected = () => {
   mqChannel.then(
-    function(value) {
-      const headers = { 
-        'instance-id': instanceId,
-        'message-type': "leader-elected"
+    function (value) {
+      const headers = {
+        "instance-id": instanceId,
+        "message-type": "leader-elected",
       };
       // io.to(data.room).emit("leader-elected", {});
 
-      value.publish(exchangeName, '', Buffer.from(""), {headers});
+      value.publish(exchangeName, "", Buffer.from(""), { headers });
       leader = instanceId;
     },
-    function(error) {
+    function (error) {
       console.log(error);
     }
-  );}
-  // Send heartbeat if I am the leader
-  const sendHeartbeat = () => {
-    if(instanceId != leader) {
-      return;
-    }
-    mqChannel.then(
-      function(value) {
-        const headers = { 
-          'instance-id': instanceId,
-          'message-type': "send-heartbeat"
-        };
+  );
+};
+// Send heartbeat if I am the leader
+const sendHeartbeat = () => {
+  if (instanceId != leader) {
+    return;
+  }
+  mqChannel.then(
+    function (value) {
+      const headers = {
+        "instance-id": instanceId,
+        "message-type": "send-heartbeat",
+      };
 
-        if(value) {
-          value.publish(exchangeName, '', Buffer.from(""), {headers});
-        }
-      },
-      function(error) {
-        console.log(error.type);
+      if (value) {
+        value.publish(exchangeName, "", Buffer.from(""), { headers });
       }
-    );}
-  
+    },
+    function (error) {
+      console.log(error.type);
+    }
+  );
+};
 
 // Consume functions
 
-// Update new active rooms to additional data 
+// Update new active rooms to additional data
 const consumeUpdateData = (msg) => {
-  if(msg.properties.headers["instance-id"] == instanceId) {
+  if (msg.properties.headers["instance-id"] == instanceId) {
     console.log("Received my own room update");
   } else {
     activeRooms = new Map(JSON.parse(msg.content));
-    console.log("Updated active rooms with new data: " + [...activeRooms.entries()]);
+    console.log(
+      "Updated active rooms with new data: " + [...activeRooms.entries()]
+    );
 
-    activeRooms.forEach(function(value, key) {
+    activeRooms.forEach(function (value, key) {
       activeRooms.get(key).players = new Map(activeRooms.get(key).players);
-      activeRooms.get(key).questionsAsked = new Map(activeRooms.get(key).questionsAsked);
+      activeRooms.get(key).questionsAsked = new Map(
+        activeRooms.get(key).questionsAsked
+      );
     });
   }
-}
+};
 
 // New leader is trying to be elected
 const consumeInitiateElection = (msg) => {
-  if(msg.properties.headers["instance-id"] == instanceId) {
+  if (msg.properties.headers["instance-id"] == instanceId) {
     console.log("Received my own leader election");
   } else {
-    console.log("Received someone else's leader election: " + msg.content.toString());
-    
-    if(instanceId < msg.properties.headers["instance-id"]) {
+    console.log(
+      "Received someone else's leader election: " + msg.content.toString()
+    );
+
+    if (instanceId < msg.properties.headers["instance-id"]) {
       initiateElection();
     } else {
-      if(leaderTimeout != null) {
+      if (leaderTimeout != null) {
         clearTimeout(leaderTimeout);
       }
     }
   }
-}
+};
 // leader has been elected
 const consumeLeaderElected = (msg) => {
-  if(msg.properties.headers["instance-id"] == instanceId) {
+  if (msg.properties.headers["instance-id"] == instanceId) {
     console.log("Received my leader election is successful");
   } else {
     console.log("Received someone else's leader election is successful");
 
-    if(leaderTimeout != null) {
+    if (leaderTimeout != null) {
       clearTimeout(leaderTimeout);
     }
     leader = msg.properties.headers["instance-id"];
   }
-}
+};
 
 // Recieve server switch update
 const consumeServerSwitch = (msg) => {
-  if(msg.properties.headers["leader-instance-id"] == instanceId) {
+  if (msg.properties.headers["leader-instance-id"] == instanceId) {
     console.log("Server switching to open leader port...");
   } else {
     console.log("Leader rebooting on open port 8080...");
-    
-    if(heartbeatTimeout != null) {
+
+    if (heartbeatTimeout != null) {
       clearTimeout(heartbeatTimeout);
     }
     heartbeatTimeout = setTimeout(initiateElection, 20000);
   }
-}
+};
 
 // consume heartbeat message from leader
 const consumeSendHeartbeat = (msg) => {
-  if(msg.properties.headers["instance-id"] == instanceId) {
+  if (msg.properties.headers["instance-id"] == instanceId) {
     console.log("Received my own heartbeat");
   } else {
-    console.log("Received heartbeat from leader ", msg.properties.headers["instance-id"]);
+    console.log(
+      "Received heartbeat from leader ",
+      msg.properties.headers["instance-id"]
+    );
 
-    if(heartbeatTimeout != null) {
+    if (heartbeatTimeout != null) {
       clearTimeout(heartbeatTimeout);
     }
     heartbeatTimeout = setTimeout(initiateElection, 7000);
   }
-}
+};
 
 async function initializeMQ() {
   try {
-      await waitTime(10000);
-      const conn = await amqp.connect(mqSettings);
-      console.log("RabbitMQ connection created...");
-      const channel = await conn.createChannel();
-      console.log("RabbitMQ channel created...");
+    await waitTime(10000);
+    const conn = await amqp.connect(mqSettings);
+    console.log("RabbitMQ connection created...");
+    const channel = await conn.createChannel();
+    console.log("RabbitMQ channel created...");
 
-      await channel.assertExchange(exchangeName, 'fanout', { durable: false });
+    await channel.assertExchange(exchangeName, "fanout", { durable: false });
 
-      const { queue } = await channel.assertQueue('queue_' + instanceId, {});
-      await channel.bindQueue(queue, exchangeName, '');
-      console.log("Rabbit Message Queue created...");
+    const { queue } = await channel.assertQueue("queue_" + instanceId, {});
+    await channel.bindQueue(queue, exchangeName, "");
+    console.log("Rabbit Message Queue created...");
 
-      channel.consume(queue, (msg) => {
+    channel.consume(
+      queue,
+      (msg) => {
         switch (msg.properties.headers["message-type"]) {
           case "data-update":
             consumeUpdateData(msg);
@@ -302,15 +325,17 @@ async function initializeMQ() {
             consumeServerSwitch(msg);
             break;
           default:
-            console.log("Unknown message-type: " + msg.properties.headers["message-type"]);
+            console.log(
+              "Unknown message-type: " + msg.properties.headers["message-type"]
+            );
             break;
         }
         channel.ack(msg);
-    
-      }, {noAck: false});
+      },
+      { noAck: false }
+    );
 
-      return channel;
-
+    return channel;
   } catch (error) {
     console.error(error);
   }
@@ -324,11 +349,13 @@ let activeRooms = null;
 
 const initializeActiveRooms = () => {
   try {
-    activeRooms = new Map(JSON.parse(fs.readFileSync('/app/data/config.json')));
-  
-    activeRooms.forEach(function(value, key) {
+    activeRooms = new Map(JSON.parse(fs.readFileSync("/app/data/config.json")));
+
+    activeRooms.forEach(function (value, key) {
       activeRooms.get(key).players = new Map(activeRooms.get(key).players);
-      activeRooms.get(key).questionsAsked = new Map(activeRooms.get(key).questionsAsked);
+      activeRooms.get(key).questionsAsked = new Map(
+        activeRooms.get(key).questionsAsked
+      );
     });
     console.log("Config file parsed in as initial state");
     console.log("Parsed rooms:", activeRooms);
@@ -336,7 +363,7 @@ const initializeActiveRooms = () => {
     console.log("Config file was empty. Initializing empty state");
     activeRooms = new Map();
   }
-}
+};
 
 function createRoom(roomCode) {
   let gameVariables = {
@@ -348,7 +375,8 @@ function createRoom(roomCode) {
     currentQuestion: "",
     correctAnswer: "",
     questionsAsked: new Map(),
-    readyForNewQuestion: true
+    readyForNewQuestion: true,
+    gameRunning: false,
   };
   activeRooms.set(roomCode, gameVariables);
 }
@@ -357,7 +385,7 @@ const sendLobbyToRoom = (room) => {
   // Check if room still exists
   try {
     const recipientRoom = activeRooms.get(room);
-    if(!recipientRoom) {
+    if (!recipientRoom) {
       console.log("Room", room, "isnt in activeRooms so cannot be sent to");
       return;
     }
@@ -382,15 +410,19 @@ const sendLobbyToRoom = (room) => {
   updateData();
 
   // Write to volume to be accessed by docker containers
-  fs.writeFile('/app/data/config.json', JSON.stringify(activeRooms, (key, value) => {
-    if (value instanceof Map) {
-      return Array.from(value.entries());
+  fs.writeFile(
+    "/app/data/config.json",
+    JSON.stringify(activeRooms, (key, value) => {
+      if (value instanceof Map) {
+        return Array.from(value.entries());
+      }
+      return value;
+    }),
+    (err) => {
+      if (err) throw err;
+      console.log("Data written to config.json");
     }
-    return value;
-  }), (err) => {
-    if (err) throw err;
-    console.log('Data written to config.json');
-  });
+  );
   console.log("Sending this lobby to room:", serializableMap);
   io.in(room).emit("update-lobby", { lobby: serializableMap, room: room });
 };
@@ -428,21 +460,21 @@ const shuffleArray = (arr) => {
   return shuffledArr;
 };
 
- // Fetching data from the trivia db
- const fetchData = async (room) => {
+// Fetching data from the trivia db
+const fetchData = async (room) => {
   const response = await QueryQuestion(room);
-  if(!response) {
-    return
+  if (!response) {
+    return;
   }
   const decodedData = decodeHtmlEntities(response);
-  if(!decodedData) {
-    return
+  if (!decodedData) {
+    return;
   }
   const type = decodedData["type"];
   const gameVars = activeRooms.get(room);
-  
-  if(!gameVars) {
-    return
+
+  if (!gameVars) {
+    return;
   }
 
   if (type === "multiple") {
@@ -467,7 +499,12 @@ const shuffleArray = (arr) => {
 };
 
 const requestQuestion = async (data) => {
-  if(!data || !data.room || !activeRooms.has(data.room) || !activeRooms.get(data.room).readyForNewQuestion) {
+  if (
+    !data ||
+    !data.room ||
+    !activeRooms.has(data.room) ||
+    !activeRooms.get(data.room).readyForNewQuestion
+  ) {
     return;
   }
 
@@ -490,7 +527,7 @@ const requestQuestion = async (data) => {
     gameVars.readyForNewQuestion = true;
     activeRooms.set(data.room, gameVars);
   }, 3000);
-}
+};
 
 initializeActiveRooms();
 
@@ -499,21 +536,20 @@ io.on("connection", (socket) => {
   // Setup rooms from config file
   try {
     let numOfRooms = 0;
-    activeRooms.forEach(function(value, key) {
+    activeRooms.forEach(function (value, key) {
       socket.join(key);
       numOfRooms++;
     });
-    if(numOfRooms > 0) {
+    if (numOfRooms > 0) {
       // console.log(numOfRooms, "rooms created in io", activeRooms);
       // console.log("Requesting frontend to rejoin games...")
-      io.sockets.emit("request-rejoin", {})
+      io.sockets.emit("request-rejoin", {});
     }
   } catch (error) {
     console.log("No old rooms to be remade in io");
     console.log("Active Rooms:", activeRooms);
     console.log(error);
   }
-
 
   socket.on("join-room", (data) => {
     if (data.newGame) {
@@ -527,7 +563,7 @@ io.on("connection", (socket) => {
 
       setTimeout(() => {
         sendLobbyToRoom(data.room);
-      }, 400)
+      }, 400);
     } else {
       // check if the code exists
       if (activeRooms.has(data.room)) {
@@ -565,7 +601,7 @@ io.on("connection", (socket) => {
       }
     }
   });
- 
+
   socket.on("rejoin-room", (data) => {
     // console.log("Rejoining room with data:", data);
 
@@ -573,7 +609,7 @@ io.on("connection", (socket) => {
       socket.leaveAll();
       socket.join(data.room);
       socket.emit("room-code", data.room);
-      
+
       if (activeRooms.get(data.room)?.gameRunning) {
         try {
           requestQuestion({ room: data.room });
@@ -586,7 +622,7 @@ io.on("connection", (socket) => {
       }, 400);
       setTimeout(() => {
         sendLobbyToRoom(data.room);
-      }, 2000)
+      }, 2000);
     } else {
       console.log("Active rooms did not find", data.room);
       console.log("Current Active Rooms is this:", activeRooms);
@@ -599,9 +635,9 @@ io.on("connection", (socket) => {
     console.log("Room starting");
     io.in(data.room).emit("started-game", {});
     const gameVars = activeRooms.get(data.room);
-    gameVars.gameRunning = true;;
+    gameVars.gameRunning = true;
     activeRooms.set(data.room, gameVars);
-    
+
     if (!activeRooms.get(data.room).totalPlayersSet) {
       activeRooms.get(data.room).totalPlayersSet = true;
     }
@@ -614,18 +650,24 @@ io.on("connection", (socket) => {
   // TODO: adjust this function to increment the score based on how fast the user answered
   socket.on("submit-answer", async (data) => {
     const gameVars = activeRooms.get(data.room);
-    if(!gameVars) {
+    if (!gameVars) {
       return;
     }
     gameVars.answersReceived++;
     var correctlyAnswered = data.answerOption === gameVars.correctAnswer;
-    console.log("Correct Answer:", gameVars.correctAnswer, "Selected Answer:", data.answerOption, "Correct:", correctlyAnswered);
-    console.log( "data:", data);
+    console.log(
+      "Correct Answer:",
+      gameVars.correctAnswer,
+      "Selected Answer:",
+      data.answerOption,
+      "Correct:",
+      correctlyAnswered
+    );
+    console.log("data:", data);
     if (correctlyAnswered) {
-
       // Increment the amount of points recieved based on amount of time left
       let scoreInc = 0;
-      if(data.timeLeft >= 13) {
+      if (data.timeLeft >= 13) {
         scoreInc = 10;
       } else if (data.timeLeft >= 11) {
         scoreInc = 8;
@@ -647,7 +689,10 @@ io.on("connection", (socket) => {
     sendLobbyToRoom(data.room);
 
     // If all users answer the question
-    if (gameVars.answersReceived >= gameVars.totalPlayers) {
+    if (
+      gameVars.answersReceived >= gameVars.totalPlayers &&
+      gameVars.gameRunning
+    ) {
       await fetchData(data.room);
       gameVars.answersReceived = 0;
       setTimeout(async () => {
@@ -663,14 +708,13 @@ io.on("connection", (socket) => {
       return;
     }
     activeRooms.set(data.room, gameVars);
-    
+
     sendLobbyToRoom(data.room);
   });
 
   socket.on("leave-room", async (data) => {
-
     const gameVars = activeRooms.get(data.room);
-    if(gameVars) {
+    if (gameVars) {
       gameVars.players.delete(data.username);
       gameVars.totalPlayers--;
       activeRooms.set(data.room, gameVars);
@@ -681,7 +725,10 @@ io.on("connection", (socket) => {
     sendLobbyToRoom(data.room);
 
     // Now that 1 player left, recheck if new question required
-    if (gameVars?.answersReceived >= gameVars?.totalPlayers) {
+    if (
+      gameVars?.answersReceived >= gameVars?.totalPlayers &&
+      gameVars?.gameRunning
+    ) {
       await fetchData(data.room);
       gameVars.answersReceived = 0;
       setTimeout(() => {
@@ -696,9 +743,9 @@ io.on("connection", (socket) => {
       return;
     }
     activeRooms.set(data.room, gameVars);
-    
+
     sendLobbyToRoom(data.room);
-});
+  });
 
   // if host leaves, delete the room
   socket.on("host-left", (data) => {
@@ -708,12 +755,12 @@ io.on("connection", (socket) => {
     io.to(data.room).emit("room-deleted", {});
     updateData();
   });
-})
+});
 
 // start server and listen for current port
 server.listen(PORT, (err) => {
   if (err) console.log(err);
-  if(instanceId == leader) {
+  if (instanceId == leader) {
     console.log("Leader server running on Port ", PORT);
   } else {
     console.log("Replica server running on Port ", PORT);

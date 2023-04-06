@@ -53,7 +53,7 @@ const Game = (props) => {
         room: room,
         username: username,
         answerOption: answerOption,
-        timeLeft: seconds
+        timeLeft: seconds,
       });
     }
   };
@@ -68,9 +68,9 @@ const Game = (props) => {
   // Timer
   function Timer(props) {
     const intervalRef = useRef(null);
-  
+
     useEffect(() => {
-      if (seconds === 0 || props.clicked ) {
+      if (seconds === 0) {
         props.handleTimer();
       } else {
         intervalRef.current = setInterval(() => {
@@ -81,10 +81,10 @@ const Game = (props) => {
           }
         }, 1000);
       }
-  
+
       return () => clearInterval(intervalRef.current);
     }, [props]);
-  
+
     return (
       <div>
         <Card bg="#393f4a" shadow="sm" radius="md" sx={{ width: 100 }}>
@@ -104,7 +104,6 @@ const Game = (props) => {
       setCurrentQuestion("");
       setCorrectAnswer("");
       socket.emit("request-question", { room: room });
-      setTimerStarted(true);
     }, 3000);
   };
 
@@ -180,12 +179,12 @@ const Game = (props) => {
   });
 
   socket.on("new-question", (data) => {
+    setTimerStarted(true);
     setCurrentQuestion(data.currentQuestion);
     setAnswerOptions(data.answerOptions);
     setCorrectAnswer(data.correctAnswer);
     setSeconds(data.time);
     setClicked(false);
-
   });
 
   socket.on("room-deleted", () => {
@@ -250,12 +249,8 @@ const Game = (props) => {
       }
     >
       <Center>
-        {clicked ? null : timerStarted ? (
-          <Timer
-            initialTime={seconds}
-            handleTimer={handleTimer}
-            clicked={clicked}
-          />
+        {timerStarted ? (
+          <Timer initialTime={seconds} handleTimer={handleTimer} />
         ) : null}
       </Center>
       <div className="centered">
