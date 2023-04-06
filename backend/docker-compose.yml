@@ -3,7 +3,7 @@ version: "2.15.1"
 services:
   rabbitmq:
     image: rabbitmq:3-management
-    restart: 'no'
+    restart: "no"
     hostname: rabbitmq
     ports:
       - 5672:5672
@@ -11,15 +11,15 @@ services:
     networks:
       - titan
     # environment:
-      # OTHER_SERVERS: 2
-      # MONGO_URI: mongodb://root:example@database1:27017/
+    # OTHER_SERVERS: 2
+    # MONGO_URI: mongodb://root:example@database1:27017/
   docker-daemon-1:
     build: ./../docker-daemon
-    restart: 'no'
+    restart: "no"
     depends_on:
       - rabbitmq
     volumes:
-      - //var/run/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - titan
     environment:
@@ -27,14 +27,14 @@ services:
       NETWORK_NAME: titan
       INSTANCE_ID: 1
       LEADER: 1
-  
+
   docker-daemon-2:
     build: ./../docker-daemon
-    restart: 'no'
+    restart: "no"
     depends_on:
       - rabbitmq
     volumes:
-      - //var/run/docker.sock:/var/run/docker.sock
+      - /var/run/docker.sock:/var/run/docker.sock
     networks:
       - titan
     environment:
@@ -97,7 +97,7 @@ services:
 
   srv1:
     build: ./
-    restart: 'no'
+    restart: "no"
     depends_on:
       - rabbitmq
       # - db1
@@ -107,7 +107,7 @@ services:
     networks:
       - titan
     volumes:
-      - data:/app/data
+      - ./data:/app/data
     environment:
       PORT: 8080
       INSTANCE_ID: 1
@@ -117,7 +117,7 @@ services:
 
   srv2:
     build: ./
-    restart: 'no'
+    restart: "no"
     depends_on:
       - rabbitmq
       # - db1
@@ -127,7 +127,7 @@ services:
     networks:
       - titan
     volumes:
-      - data:/app/data
+      - ./data:/app/data
     environment:
       PORT: 8080
       INSTANCE_ID: 2
@@ -136,7 +136,7 @@ services:
       # MONGO_URI: mongodb://root:example@database2:27017/
   srv3:
     build: ./
-    restart: 'no'
+    restart: "no"
     depends_on:
       - rabbitmq
       # - db1
@@ -146,7 +146,7 @@ services:
     networks:
       - titan
     volumes:
-    - data:/app/data
+      - ./data:/app/data
     environment:
       PORT: 8080
       INSTANCE_ID: 3
@@ -155,8 +155,8 @@ services:
       # MONGO_URI: mongodb://root:example@database2:27017/
 networks:
   titan:
-      name: titan
-      driver: bridge
+    name: titan
+    driver: bridge
 volumes:
   # database:
   #   driver: local
@@ -168,11 +168,8 @@ volumes:
     driver: local
     driver_opts:
       type: none
-      device: /data
+      device: ./data
       o: bind
-
-
-
 # DB STUFF:
 
 #  db1:
@@ -185,7 +182,7 @@ volumes:
 #       MONGO_INITDB_ROOT_USERNAME: admin
 #       MONGO_INITDB_ROOT_PASSWORD: adminpass
 #     ports:
-#       - "27017:27017"    
+#       - "27017:27017"
 
 #   db2:
 #     image: mongo
@@ -197,25 +194,24 @@ volumes:
 #       MONGO_INITDB_ROOT_USERNAME: admin
 #       MONGO_INITDB_ROOT_PASSWORD: adminpass
 #     ports:
-#       - "27018:27017"    
+#       - "27018:27017"
 
+# db-express1:
+#   image: mongo-express
+#   restart: 'no'
+#   ports:
+#     - 8083:8081
+#   environment:
+#     ME_CONFIG_MONGODB_ADMINUSERNAME: admin
+#     ME_CONFIG_MONGODB_ADMINPASSWORD: adminpass
+#     ME_CONFIG_MONGODB_URL: mongodb://admin:adminpass@db1:27017/
 
-  # db-express1:
-  #   image: mongo-express
-  #   restart: 'no'
-  #   ports:
-  #     - 8083:8081
-  #   environment:
-  #     ME_CONFIG_MONGODB_ADMINUSERNAME: admin
-  #     ME_CONFIG_MONGODB_ADMINPASSWORD: adminpass
-  #     ME_CONFIG_MONGODB_URL: mongodb://admin:adminpass@db1:27017/
-
-  # db-express2:
-  #   image: mongo-express
-  #   restart: 'no'
-  #   ports:
-  #     - 8084:8081
-  #   environment:
-  #     ME_CONFIG_MONGODB_ADMINUSERNAME: admin
-  #     ME_CONFIG_MONGODB_ADMINPASSWORD: adminpass
-  #     ME_CONFIG_MONGODB_URL: mongodb://admin:adminpass@db2:27017/
+# db-express2:
+#   image: mongo-express
+#   restart: 'no'
+#   ports:
+#     - 8084:8081
+#   environment:
+#     ME_CONFIG_MONGODB_ADMINUSERNAME: admin
+#     ME_CONFIG_MONGODB_ADMINPASSWORD: adminpass
+#     ME_CONFIG_MONGODB_URL: mongodb://admin:adminpass@db2:27017/
