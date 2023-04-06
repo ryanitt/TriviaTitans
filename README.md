@@ -51,3 +51,6 @@ docker compose down
 
 # Testing
 By running the frontend
+
+# Troubleshooting
+You may encounter errors when running `docker compose up --build`. Specifically, the docker-daemon may throw an error on start. If this happens, try killing the terminal, deleting the `backend` docker container group, and run `docker compose up --build` again. If the issue is persistent, try restarting your computer.
