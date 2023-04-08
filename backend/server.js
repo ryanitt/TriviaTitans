@@ -519,9 +519,12 @@ io.on("connection", (socket) => {
     console.log("User connected with code", roomCode, "and username", username, "from IP address", socket.request.connection.remoteAddress);
     if(roomCode && username) {
       socket.join(roomCode); 
-      setTimeout(() => {
-        requestQuestion({ room: roomCode });
-      }, 400);  
+      if(activeRooms?.get(roomCode)?.gameRunning) {
+        setTimeout(() => {
+          requestQuestion({ room: roomCode });
+        }, 400);  
+      }
+
       setTimeout(() => {
         sendLobbyToRoom(roomCode);
       }, 600);  
