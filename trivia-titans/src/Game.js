@@ -23,7 +23,6 @@ const Game = (props) => {
   const navigate = useNavigate();
   const lobbyStatus = useRef(new Map());
   const [lobbyElements, setLobbyElements] = useState([]);
-  const [room, setRoom] = useState("");
   const [isHost, setIsHost] = useState(false);
   const [startGame, setStartGame] = useState(false);
   const [endedGame, setEndedGame] = useState(false);
@@ -34,8 +33,8 @@ const Game = (props) => {
   const [clicked, setClicked] = useState(false);
   const [timerStarted, setTimerStarted] = useState(false);
   const [seconds, setSeconds] = useState(15);
-  const { state } = useLocation();
-  const { username } = state;
+  const location = useLocation();
+  const { username, room } = location.state;
 
   /********* Component functions /*********/
 
@@ -163,63 +162,79 @@ const Game = (props) => {
     },
     [username]
   );
-
-  /********* Socket Events /*********/
-
-  socket.on("room-code", (data) => {
-    setRoom(data);
-  });
-
-  socket.on("assign-host", (data) => {
-    setIsHost(data);
-  });
-
-  socket.on("started-game", () => {
-    setStartGame(true);
-    setTimerStarted(true);
-  });
-
-  socket.on("new-question", (data) => {
-    setCurrentQuestion(data.currentQuestion);
-    setAnswerOptions(data.answerOptions);
-    setCorrectAnswer(data.correctAnswer);
-    setSeconds(data.time);
-    setClicked(false);
-
-  });
-
-  socket.on("room-deleted", () => {
-    navigate("/", { state: isHost ? false : true });
-  });
-
   useEffect(() => {
     console.log(room, username, isHost);
   }, [room, username, isHost]);
-
+  /********* Socket Events /*********/
   useEffect(() => {
+    // set handshake query parameters for the socket instance
+    socket.io.opts.query = {
+      username: location.state.username,
+      roomCode: location.state.room,
+    };
+    
+    // connect to the server with the updated socket instance
+    socket.connect();
+
+    socket.on("assign-host", (data) => {
+      setIsHost(data);
+    });
+  
+    socket.on("started-game", () => {
+      setStartGame(true);
+      setTimerStarted(true);
+    });
+  
+    socket.on("new-question", (data) => {
+      setCurrentQuestion(data.currentQuestion);
+      setAnswerOptions(data.answerOptions);
+      setCorrectAnswer(data.correctAnswer);
+      setSeconds(data.time);
+      setClicked(false);
+  
+    });
+  
+    socket.on("room-deleted", () => {
+      navigate("/", { state: isHost ? false : true });
+    });
+  
     socket.on("update-lobby", (data) => {
       arrangeLobby(new Map(JSON.parse(data.lobby)));
     });
-  }, [arrangeLobby, socket]);
 
-  useEffect(() => {
     socket.on("winner-found", (data) => {
       setWinner(data.winner);
       setStartGame(false);
       setEndedGame(true);
       setTimerStarted(false);
     });
-  }, [winner, socket]);
 
-  useEffect(() => {
-    socket.on("request-rejoin", () => {
-      clearQuestionStates();
-      console.log("Attempting to rejoin room", room);
-      socket.emit("rejoin-room", {
-        room: room,
-      });
+    socket.on("reconnect_attempt", attemptNumber => {
+      console.log("Reconnect attempt", attemptNumber, "with code", room, "and username", username);
+      socket.io.opts.query = {
+        roomCode: room,
+        username: username
+      };
     });
-  }, [socket, room]);
+
+    socket.on("reconnect", (attemptNumber) => {
+      // set the query parameters for the socket
+      socket.io.opts.query = {
+        roomCode: room,
+        username: username
+      };
+      socket.connect(); // reconnect with the new query parameters
+      
+      // check if user is the host
+      if (isHost) {
+        socket.emit("request-question", { room: room });
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [arrangeLobby, isHost, navigate, location.state.username, location.state.room, room, username, socket]);
 
   return (
     <AppShell

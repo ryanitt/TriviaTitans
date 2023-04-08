@@ -334,6 +334,7 @@ const initializeActiveRooms = () => {
     });
     console.log("Config file parsed in as initial state");
     console.log("Parsed rooms:", activeRooms);
+
   } catch (error) {
     console.log("Config file was empty. Initializing empty state");
     activeRooms = new Map();
@@ -469,6 +470,8 @@ const shuffleArray = (arr) => {
 
 const requestQuestion = async (data) => {
   if(!data || !data.room || !activeRooms.has(data.room) || !activeRooms.get(data.room).readyForNewQuestion) {
+    console.log("Cannot send a new question because active rooms does not have", data.room);
+    console.log(activeRooms);
     return;
   }
 
@@ -497,24 +500,34 @@ initializeActiveRooms();
 
 //in case server and client run on different urls
 io.on("connection", (socket) => {
-  // Setup rooms from config file
-  try {
-    let numOfRooms = 0;
-    activeRooms.forEach(function(value, key) {
-      socket.join(key);
-      numOfRooms++;
-    });
-    if(numOfRooms > 0) {
-      // console.log(numOfRooms, "rooms created in io", activeRooms);
-      // console.log("Requesting frontend to rejoin games...")
-      io.sockets.emit("request-rejoin", {})
-    }
-  } catch (error) {
-    console.log("No old rooms to be remade in io");
-    console.log("Active Rooms:", activeRooms);
-    console.log(error);
-  }
+  const roomCode = socket.handshake.query.roomCode;
+  const username = socket.handshake.query.username;
 
+  if (socket.handshake.reconnection) {
+    console.log("User reconnected with code", roomCode, "and username", username);
+    // Setup room
+    try {
+      socket.join(roomCode); 
+      setTimeout(() => {
+        sendLobbyToRoom(roomCode);
+      }, 400);    
+    } catch (error) {
+      console.log("Unable to rejoin room ", roomCode);
+      console.log(error);
+    }
+  } else {
+    console.log("User connected with code", roomCode, "and username", username);
+    if(!roomCode || !username) {
+      return;
+    }
+    socket.join(roomCode); 
+    setTimeout(() => {
+      requestQuestion({ room: roomCode });
+    }, 400);  
+    setTimeout(() => {
+      sendLobbyToRoom(roomCode);
+    }, 400);  
+  }
 
   socket.on("join-room", (data) => {
     if (data.newGame) {
@@ -528,7 +541,7 @@ io.on("connection", (socket) => {
 
       setTimeout(() => {
         sendLobbyToRoom(data.room);
-      }, 400)
+      }, 400);
     } else {
       // check if the code exists
       if (activeRooms.has(data.room)) {
@@ -564,34 +577,6 @@ io.on("connection", (socket) => {
       } else {
         socket.emit("invalid-code", true);
       }
-    }
-  });
- 
-  socket.on("rejoin-room", (data) => {
-    // console.log("Rejoining room with data:", data);
-
-    if (activeRooms.has(data.room)) {
-      socket.leaveAll();
-      socket.join(data.room);
-      socket.emit("room-code", data.room);
-      
-      if (activeRooms.get(data.room)?.gameRunning) {
-        try {
-          requestQuestion({ room: data.room });
-        } catch (error) {
-          console.log(error);
-        }
-      }
-      setTimeout(() => {
-        sendLobbyToRoom(data.room);
-      }, 400);
-      setTimeout(() => {
-        sendLobbyToRoom(data.room);
-      }, 2000)
-    } else {
-      console.log("Active rooms did not find", data.room);
-      console.log("Current Active Rooms is this:", activeRooms);
-      socket.emit("invalid-code", true);
     }
   });
 

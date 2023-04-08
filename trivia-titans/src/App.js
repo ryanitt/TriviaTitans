@@ -59,7 +59,7 @@ const App = (props) => {
       newGame: true,
     });
 
-    navigate("/game", { state: { username: usernameRef.current } });
+    navigate("/game", { state: { username: usernameRef.current, room: roomRef.current } });
   };
 
   const clearStates = () => {
@@ -75,7 +75,7 @@ const App = (props) => {
 
   useEffect(() => {
     appSocket.on("join-success", (data) => {
-      if (data) navigate("/game", { state: { username: usernameRef.current } });
+      if (data) navigate("/game", { state: { username: usernameRef.current, room: roomRef.current } });
     });
     appSocket.on("limit-reached", (data) => {
       if (data) setLimitReached(true);
