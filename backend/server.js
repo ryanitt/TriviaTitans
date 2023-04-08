@@ -274,7 +274,9 @@ const consumeSendHeartbeat = (msg) => {
 
 async function initializeMQ() {
   try {
-      await waitTime(10000);
+      if(process.env.WAIT_FOR_MQ) {
+        await waitTime(10000);
+      }
       const conn = await amqp.connect(mqSettings);
       console.log("RabbitMQ connection created...");
       const channel = await conn.createChannel();

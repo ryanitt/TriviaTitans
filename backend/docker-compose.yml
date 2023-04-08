@@ -57,6 +57,7 @@ services:
       INSTANCE_ID: 1
       LEADER: 1
       RABBITMQ_HOST: rabbitmq
+      WAIT_FOR_MQ: true
 
   srv2:
     build: ./
@@ -74,6 +75,8 @@ services:
       INSTANCE_ID: 2
       LEADER: 1
       RABBITMQ_HOST: rabbitmq
+      WAIT_FOR_MQ: true
+
   srv3:
     build: ./
     restart: "no"
@@ -90,6 +93,8 @@ services:
       INSTANCE_ID: 3
       LEADER: 1
       RABBITMQ_HOST: rabbitmq
+      WAIT_FOR_MQ: true
+      
 networks:
   titan:
     name: titan

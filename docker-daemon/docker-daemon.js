@@ -49,7 +49,7 @@ const ddInitiateElection = () => {
       if(leaderTimeout != null) {
         clearTimeout(leaderTimeout);
       }
-      leaderTimeout = setTimeout(ddLeaderElected, 5000);
+      leaderTimeout = setTimeout(ddLeaderElected, 3000);
 
       console.log("Leader timeout started");
     },
@@ -139,7 +139,7 @@ const consumeDDSendHeartbeat = (msg) => {
     if(heartbeatTimeout != null) {
       clearTimeout(heartbeatTimeout);
     }
-    heartbeatTimeout = setTimeout(ddInitiateElection, 15000);
+    heartbeatTimeout = setTimeout(ddInitiateElection, 7000);
   }
 }
 
@@ -238,7 +238,8 @@ async function consumeLeaderElected(msg)  {
                 'PORT=8080',
                 'INSTANCE_ID=' + containerInstanceIdEntry,
                 'LEADER=' + containerInstanceIdEntry,
-                'RABBITMQ_HOST=rabbitmq'
+                'RABBITMQ_HOST=rabbitmq',
+                'WAIT_FOR_MQ=false'
               ]
             };
             
@@ -368,4 +369,4 @@ async function initializeDaemonMQ() {
 const serverMQChannel = initializeServerMQ();
 const daemonMQChannel = initializeDaemonMQ();
 
-setInterval(ddSendHeartbeat, 5000);
+setInterval(ddSendHeartbeat, 3000);
