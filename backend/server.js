@@ -64,7 +64,7 @@ async function QueryQuestion(room) {
     return response;
   } catch (error) {
 
-    console.log("Question could not be retrieved from DB", dbNum);
+    console.log("Question could not be retrieved from DB", dbNum, " switching to DB", dbNum + 1);
     if(dbNum < 2) {
       dbNum++;
       connectClient();
@@ -203,11 +203,13 @@ const consumeUpdateData = (msg) => {
     console.log("Received my own room update");
   } else {
     activeRooms = new Map(JSON.parse(msg.content));
-    console.log("Updated active rooms with new data: " + [...activeRooms.entries()]);
+    console.log("Updated active rooms with new data: " + activeRooms);
 
     activeRooms.forEach(function(value, key) {
-      activeRooms.get(key).players = new Map(activeRooms.get(key).players);
-      activeRooms.get(key).questionsAsked = new Map(activeRooms.get(key).questionsAsked);
+      if(value) {
+        activeRooms.get(key).players = new Map(activeRooms.get(key).players);
+        activeRooms.get(key).questionsAsked = new Map(activeRooms.get(key).questionsAsked);
+      }
     });
   }
 }
@@ -358,7 +360,6 @@ const sendLobbyToRoom = (room) => {
   try {
     const recipientRoom = activeRooms.get(room);
     if(!recipientRoom) {
-      console.log("Room", room, "isnt in activeRooms so cannot be sent to");
       return;
     }
   } catch (error) {
@@ -596,6 +597,9 @@ io.on("connection", (socket) => {
 
   // User clicks the "Start Game" button, only accesible to the host
   socket.on("initialize-game", (data) => {
+    if(!activeRooms.has(data.room)) {
+      return;
+    }
     console.log("Room starting");
     io.in(data.room).emit("started-game", {});
     const gameVars = activeRooms.get(data.room);
