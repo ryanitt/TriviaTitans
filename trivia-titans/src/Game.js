@@ -52,7 +52,7 @@ const Game = (props) => {
         room: room,
         username: username,
         answerOption: answerOption,
-        timeLeft: seconds
+        timeLeft: seconds,
       });
     }
   };
@@ -67,9 +67,9 @@ const Game = (props) => {
   // Timer
   function Timer(props) {
     const intervalRef = useRef(null);
-  
+
     useEffect(() => {
-      if (seconds === 0 || props.clicked ) {
+      if (seconds === 0 || props.clicked) {
         props.handleTimer();
       } else {
         intervalRef.current = setInterval(() => {
@@ -80,10 +80,10 @@ const Game = (props) => {
           }
         }, 1000);
       }
-  
+
       return () => clearInterval(intervalRef.current);
     }, [props]);
-  
+
     return (
       <div>
         <Card bg="#393f4a" shadow="sm" radius="md" sx={{ width: 100 }}>
@@ -172,32 +172,31 @@ const Game = (props) => {
       username: location.state.username,
       roomCode: location.state.room,
     };
-    
+
     // connect to the server with the updated socket instance
     socket.connect();
 
     socket.on("assign-host", (data) => {
       setIsHost(data);
     });
-  
+
     socket.on("started-game", () => {
       setStartGame(true);
       setTimerStarted(true);
     });
-  
+
     socket.on("new-question", (data) => {
       setCurrentQuestion(data.currentQuestion);
       setAnswerOptions(data.answerOptions);
       setCorrectAnswer(data.correctAnswer);
       setSeconds(data.time);
       setClicked(false);
-  
     });
-  
+
     socket.on("room-deleted", () => {
       navigate("/", { state: isHost ? false : true });
     });
-  
+
     socket.on("update-lobby", (data) => {
       arrangeLobby(new Map(JSON.parse(data.lobby)));
     });
@@ -209,11 +208,11 @@ const Game = (props) => {
       setTimerStarted(false);
     });
 
-    socket.on("reconnect_attempt", attemptNumber => {
+    socket.on("reconnect_attempt", (attemptNumber) => {
       console.log("Reconnect attempt", attemptNumber, "with code", room, "and username", username);
       socket.io.opts.query = {
         roomCode: room,
-        username: username
+        username: username,
       };
     });
 
@@ -221,7 +220,7 @@ const Game = (props) => {
       // set the query parameters for the socket
       socket.io.opts.query = {
         roomCode: room,
-        username: username
+        username: username,
       };
       socket.connect(); // reconnect with the new query parameters
       socket.emit("request-question", { room: room });
@@ -242,13 +241,7 @@ const Game = (props) => {
       }
       header={
         <Header height={70}>
-          <Button
-            size="lg"
-            component={Link}
-            to="/"
-            className="exit"
-            onClick={handleExit}
-          >
+          <Button size="lg" component={Link} to="/" className="exit" onClick={handleExit}>
             Exit
           </Button>
 
@@ -263,11 +256,7 @@ const Game = (props) => {
     >
       <Center>
         {clicked ? null : timerStarted ? (
-          <Timer
-            initialTime={seconds}
-            handleTimer={handleTimer}
-            clicked={clicked}
-          />
+          <Timer initialTime={seconds} handleTimer={handleTimer} clicked={clicked} />
         ) : null}
       </Center>
       <div className="centered">
@@ -283,11 +272,7 @@ const Game = (props) => {
               {answerOptions.map((option) => (
                 <UnstyledButton
                   sx={{
-                    backgroundColor: clicked
-                      ? option === correctAnswer
-                        ? "#2B8A3E"
-                        : "#C92A2A"
-                      : "#1864ab",
+                    backgroundColor: clicked ? (option === correctAnswer ? "#2B8A3E" : "#C92A2A") : "#1864ab",
                     borderRadius: "5px",
                     "&:hover": {
                       backgroundColor: "#339af0",
@@ -296,17 +281,9 @@ const Game = (props) => {
                   p="md"
                   key={option}
                   onClick={() => handleAnswerOptionClick(option)}
-                  className={
-                    clicked ? "answer-button--disabled" : "answer-button"
-                  }
+                  className={clicked ? "answer-button--disabled" : "answer-button"}
                 >
-                  <Text
-                    truncate={false}
-                    lineClamp={2}
-                    ta="center"
-                    fw={500}
-                    color="white"
-                  >
+                  <Text truncate={false} lineClamp={2} ta="center" fw={500} color="white">
                     {option}
                   </Text>
                 </UnstyledButton>

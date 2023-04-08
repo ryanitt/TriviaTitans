@@ -1,15 +1,7 @@
 import logo from "./logo.svg";
 import "./App.css";
 import { useLocation, useNavigate } from "react-router-dom";
-import {
-  Alert,
-  Button,
-  Center,
-  Modal,
-  Space,
-  Text,
-  TextInput,
-} from "@mantine/core";
+import { Alert, Button, Center, Modal, Space, Text, TextInput } from "@mantine/core";
 import { useState, useEffect, useRef } from "react";
 
 const App = (props) => {
@@ -31,13 +23,7 @@ const App = (props) => {
   const [errorText, setErrorText] = useState("");
 
   const useJoinGame = () => {
-    if (
-      roomRef.current !== "" &&
-      !invalidCode &&
-      !limitReached &&
-      !gameRunning &&
-      !invalidUsername
-    ) {
+    if (roomRef.current !== "" && !invalidCode && !limitReached && !gameRunning && !invalidUsername) {
       // TODO: if its an invalid code dont send this emit
       appSocket.connect();
       console.log("Sending attempt to join room", room, "with username", username);
@@ -134,17 +120,11 @@ const App = (props) => {
       <Space h="lg" />
 
       <Center>
-        <Button
-          size="lg"
-          onClick={() => setIsNewGameModalOpen(!isNewGameModalOpen)}
-        >
+        <Button size="lg" onClick={() => setIsNewGameModalOpen(!isNewGameModalOpen)}>
           New Game
         </Button>
         <Space w="lg" />
-        <Button
-          size="lg"
-          onClick={() => setIsJoinGameModalOpen(!isJoinGameModalOpen)}
-        >
+        <Button size="lg" onClick={() => setIsJoinGameModalOpen(!isJoinGameModalOpen)}>
           Join Game
         </Button>
         <Modal
