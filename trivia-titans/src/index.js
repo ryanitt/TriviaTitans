@@ -14,6 +14,9 @@ const socket = io.connect("http://localhost:8080/", {
     username: "NoUsernameSpecified",
     room: "NoRoomAssigned",
   },
+  reconnection: true,
+  reconnectionDelay: 1000,
+  reconnectionAttempts: Infinity,
 });
 
 root.render(
