@@ -214,6 +214,7 @@ const Game = (props) => {
   useEffect(() => {
     socket.on("request-rejoin", () => {
       clearQuestionStates();
+      console.log("Attempting to rejoin room", room);
       socket.emit("rejoin-room", {
         room: room,
       });
