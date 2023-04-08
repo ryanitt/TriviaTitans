@@ -39,6 +39,7 @@ const App = (props) => {
       !invalidUsername
     ) {
       // TODO: if its an invalid code dont send this emit
+      console.log("Sending attempt to join room", room, "with username", username);
       appSocket.emit("join-room", {
         username: usernameRef.current,
         room: roomRef.current,

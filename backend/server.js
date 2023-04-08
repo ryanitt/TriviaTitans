@@ -504,32 +504,32 @@ io.on("connection", (socket) => {
   const username = socket.handshake.query.username;
 
   if (socket.handshake.reconnection) {
-    console.log("User reconnected with code", roomCode, "and username", username);
+    console.log("User reconnected with code", roomCode, "and username", username, "from IP address", socket.request.connection.remoteAddress);
     // Setup room
     try {
       socket.join(roomCode); 
       setTimeout(() => {
         sendLobbyToRoom(roomCode);
-      }, 400);    
+      }, 600);    
     } catch (error) {
       console.log("Unable to rejoin room ", roomCode);
       console.log(error);
     }
   } else {
-    console.log("User connected with code", roomCode, "and username", username);
-    if(!roomCode || !username) {
-      return;
+    console.log("User connected with code", roomCode, "and username", username, "from IP address", socket.request.connection.remoteAddress);
+    if(roomCode && username) {
+      socket.join(roomCode); 
+      setTimeout(() => {
+        requestQuestion({ room: roomCode });
+      }, 400);  
+      setTimeout(() => {
+        sendLobbyToRoom(roomCode);
+      }, 600);  
     }
-    socket.join(roomCode); 
-    setTimeout(() => {
-      requestQuestion({ room: roomCode });
-    }, 400);  
-    setTimeout(() => {
-      sendLobbyToRoom(roomCode);
-    }, 400);  
   }
 
   socket.on("join-room", (data) => {
+    console.log("Join request:", data);
     if (data.newGame) {
       socket.join(data.room);
       console.log("New Game:", data.room);
