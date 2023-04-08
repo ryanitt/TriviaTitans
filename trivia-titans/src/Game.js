@@ -224,11 +224,7 @@ const Game = (props) => {
         username: username
       };
       socket.connect(); // reconnect with the new query parameters
-      
-      // check if user is the host
-      if (isHost) {
-        socket.emit("request-question", { room: room });
-      }
+      socket.emit("request-question", { room: room });
     });
 
     return () => {

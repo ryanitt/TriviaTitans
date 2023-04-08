@@ -331,6 +331,7 @@ const initializeActiveRooms = () => {
     activeRooms.forEach(function(value, key) {
       activeRooms.get(key).players = new Map(activeRooms.get(key).players);
       activeRooms.get(key).questionsAsked = new Map(activeRooms.get(key).questionsAsked);
+      activeRooms.get(key).readyForNewQuestion = true;
     });
     console.log("Config file parsed in as initial state");
     console.log("Parsed rooms:", activeRooms);
@@ -469,8 +470,12 @@ const shuffleArray = (arr) => {
 };
 
 const requestQuestion = async (data) => {
-  if(!data || !data.room || !activeRooms.has(data.room) || !activeRooms.get(data.room).readyForNewQuestion) {
-    console.log("Cannot send a new question because active rooms does not have", data.room);
+  if(!data || !data.room || 
+    !activeRooms.has(data.room) || !activeRooms.get(data.room).readyForNewQuestion ||
+    io.sockets.adapter.rooms.get(data.room).size < activeRooms.get(data.room).totalPlayers) {
+    console.log("Cannot send a new question");
+    console.log("data:", data, "has room:", activeRooms.has(data.room), "readyForNew:", activeRooms.get(data.room).readyForNewQuestion,
+    "Players in socket room:",   io.sockets.adapter.rooms.get(data.room).size, "Number of players expected:", activeRooms.get(data.room).totalPlayers);
     console.log(activeRooms);
     return;
   }
@@ -588,7 +593,7 @@ io.on("connection", (socket) => {
     if(!activeRooms.has(data.room)) {
       return;
     }
-    console.log("Room starting");
+    console.log("Room", data.room, "starting");
     io.in(data.room).emit("started-game", {});
     const gameVars = activeRooms.get(data.room);
     gameVars.gameRunning = true;;
