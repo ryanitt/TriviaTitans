@@ -220,10 +220,12 @@ const consumeUpdateData = (msg) => {
     );
 
     activeRooms.forEach(function (value, key) {
-      activeRooms.get(key).players = new Map(activeRooms.get(key).players);
-      activeRooms.get(key).questionsAsked = new Map(
-        activeRooms.get(key).questionsAsked
-      );
+      if(value) {
+        activeRooms.get(key).players = new Map(activeRooms.get(key).players);
+        activeRooms.get(key).questionsAsked = new Map(
+          activeRooms.get(key).questionsAsked
+        );
+      }
     });
   }
 };

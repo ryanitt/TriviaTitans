@@ -10,9 +10,7 @@ services:
       - 15672:15672
     networks:
       - titan
-    # environment:
-    # OTHER_SERVERS: 2
-    # MONGO_URI: mongodb://root:example@database1:27017/
+
   docker-daemon-1:
     build: ./../docker-daemon
     restart: "no"
@@ -25,7 +23,7 @@ services:
     environment:
       RABBITMQ_HOST: rabbitmq
       NETWORK_NAME: titan
-      INSTANCE_ID: 1
+      DAEMON_INSTANCE_ID: 1
       LEADER: 1
 
   docker-daemon-2:
@@ -40,68 +38,15 @@ services:
     environment:
       RABBITMQ_HOST: rabbitmq
       NETWORK_NAME: titan
-      INSTANCE_ID: 2
+      DAEMON_INSTANCE_ID: 2
       LEADER: 1
-
-  # db1:
-  #   image: mongo
-  #   restart: unless-stopped
-  #   volumes:
-  #     - ./database1:/data/db
-  #   # command: mongorestore --db=db1 --collection=questions --dir=/database/ --drop
-  #   ports:
-  #     - 27017:27017
-  #   networks:
-  #     - titan
-  #   environment:
-  #     MONGO_INITDB_ROOT_USERNAME: admin
-  #     MONGO_INITDB_ROOT_PASSWORD: adminpass
-
-  # db2:
-  #   image: mongo
-  #   restart: unless-stopped
-  #   volumes:
-  #     - ./database2:/data/db
-  #   # command: mongorestore --db=db1 --collection=questions --dir=/database/ --drop
-  #   # ports:
-  #   #   - 27018:27017
-  #   networks:
-  #     - titan
-  #   environment:
-  #     MONGO_INITDB_ROOT_USERNAME: admin
-  #     MONGO_INITDB_ROOT_PASSWORD: adminpass
-
-  # db-express1:
-  #   image: mongo-express
-  #   restart: unless-stopped
-  #   ports:
-  #     - 8083:8081
-  #   networks:
-  #     - titan
-  #   environment:
-  #     ME_CONFIG_MONGODB_ADMINUSERNAME: admin
-  #     ME_CONFIG_MONGODB_ADMINPASSWORD: adminpass
-  #     ME_CONFIG_MONGODB_URL: mongodb://admin:adminpass@db1:27017/
-
-  # db-express2:
-  #   image: mongo-express
-  #   restart: unless-stopped
-  #   ports:
-  #     - 8084:8081
-  #   networks:
-  #     - titan
-  #   environment:
-  #     ME_CONFIG_MONGODB_ADMINUSERNAME: admin
-  #     ME_CONFIG_MONGODB_ADMINPASSWORD: adminpass
-  #     ME_CONFIG_MONGODB_URL: mongodb://admin:adminpass@db2:27017/
 
   srv1:
     build: ./
     restart: "no"
     depends_on:
       - rabbitmq
-      # - db1
-      # - db-express1
+
     ports:
       - 8080:8080
     networks:
@@ -113,15 +58,13 @@ services:
       INSTANCE_ID: 1
       LEADER: 1
       RABBITMQ_HOST: rabbitmq
-      # MONGO_URI: mongodb://root:example@database1:27017/
 
   srv2:
     build: ./
     restart: "no"
     depends_on:
       - rabbitmq
-      # - db1
-      # - db-express1
+
     ports:
       - 8081:8080
     networks:
@@ -133,14 +76,13 @@ services:
       INSTANCE_ID: 2
       LEADER: 1
       RABBITMQ_HOST: rabbitmq
-      # MONGO_URI: mongodb://root:example@database2:27017/
+
   srv3:
     build: ./
     restart: "no"
     depends_on:
       - rabbitmq
-      # - db1
-      # - db-express1
+
     ports:
       - 8082:8080
     networks:
@@ -152,66 +94,15 @@ services:
       INSTANCE_ID: 3
       LEADER: 1
       RABBITMQ_HOST: rabbitmq
-      # MONGO_URI: mongodb://root:example@database2:27017/
+
 networks:
   titan:
     name: titan
     driver: bridge
 volumes:
-  # database:
-  #   driver: local
-  #   driver_opts:
-  #     type: none
-  #     device: /database
-  #     o: bind
   data:
     driver: local
     driver_opts:
       type: none
       device: ./data
       o: bind
-# DB STUFF:
-
-#  db1:
-#     image: mongo
-#     restart: 'no'
-#     # volumes:
-#     #   - database:/database
-#     # command: mongorestore --db=db1 --collection=questions --dir=/database/ --drop
-#     environment:
-#       MONGO_INITDB_ROOT_USERNAME: admin
-#       MONGO_INITDB_ROOT_PASSWORD: adminpass
-#     ports:
-#       - "27017:27017"
-
-#   db2:
-#     image: mongo
-#     restart: 'no'
-#     # volumes:
-#     #   - database:/database
-#     # command: mongorestore --db=db2 --collection=questions --dir=/database/ --drop
-#     environment:
-#       MONGO_INITDB_ROOT_USERNAME: admin
-#       MONGO_INITDB_ROOT_PASSWORD: adminpass
-#     ports:
-#       - "27018:27017"
-
-# db-express1:
-#   image: mongo-express
-#   restart: 'no'
-#   ports:
-#     - 8083:8081
-#   environment:
-#     ME_CONFIG_MONGODB_ADMINUSERNAME: admin
-#     ME_CONFIG_MONGODB_ADMINPASSWORD: adminpass
-#     ME_CONFIG_MONGODB_URL: mongodb://admin:adminpass@db1:27017/
-
-# db-express2:
-#   image: mongo-express
-#   restart: 'no'
-#   ports:
-#     - 8084:8081
-#   environment:
-#     ME_CONFIG_MONGODB_ADMINUSERNAME: admin
-#     ME_CONFIG_MONGODB_ADMINPASSWORD: adminpass
-#     ME_CONFIG_MONGODB_URL: mongodb://admin:adminpass@db2:27017/
