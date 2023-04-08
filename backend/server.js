@@ -64,7 +64,7 @@ async function QueryQuestion(room) {
     return response;
   } catch (error) {
 
-    console.log("Question could not be retrieved from DB", dbNum);
+    console.log("Question could not be retrieved from DB", dbNum, " switching to DB", dbNum + 1);
     if(dbNum < 2) {
       dbNum++;
       connectClient();
@@ -203,11 +203,13 @@ const consumeUpdateData = (msg) => {
     console.log("Received my own room update");
   } else {
     activeRooms = new Map(JSON.parse(msg.content));
-    console.log("Updated active rooms with new data: " + [...activeRooms.entries()]);
+    console.log("Updated active rooms with new data: " + activeRooms);
 
     activeRooms.forEach(function(value, key) {
-      activeRooms.get(key).players = new Map(activeRooms.get(key).players);
-      activeRooms.get(key).questionsAsked = new Map(activeRooms.get(key).questionsAsked);
+      if(value) {
+        activeRooms.get(key).players = new Map(activeRooms.get(key).players);
+        activeRooms.get(key).questionsAsked = new Map(activeRooms.get(key).questionsAsked);
+      }
     });
   }
 }
@@ -272,7 +274,9 @@ const consumeSendHeartbeat = (msg) => {
 
 async function initializeMQ() {
   try {
-      await waitTime(10000);
+      if(process.env.WAIT_FOR_MQ) {
+        await waitTime(10000);
+      }
       const conn = await amqp.connect(mqSettings);
       console.log("RabbitMQ connection created...");
       const channel = await conn.createChannel();
@@ -329,9 +333,11 @@ const initializeActiveRooms = () => {
     activeRooms.forEach(function(value, key) {
       activeRooms.get(key).players = new Map(activeRooms.get(key).players);
       activeRooms.get(key).questionsAsked = new Map(activeRooms.get(key).questionsAsked);
+      activeRooms.get(key).readyForNewQuestion = true;
     });
     console.log("Config file parsed in as initial state");
     console.log("Parsed rooms:", activeRooms);
+
   } catch (error) {
     console.log("Config file was empty. Initializing empty state");
     activeRooms = new Map();
@@ -358,7 +364,6 @@ const sendLobbyToRoom = (room) => {
   try {
     const recipientRoom = activeRooms.get(room);
     if(!recipientRoom) {
-      console.log("Room", room, "isnt in activeRooms so cannot be sent to");
       return;
     }
   } catch (error) {
@@ -467,7 +472,13 @@ const shuffleArray = (arr) => {
 };
 
 const requestQuestion = async (data) => {
-  if(!data || !data.room || !activeRooms.has(data.room) || !activeRooms.get(data.room).readyForNewQuestion) {
+  if(!data || !data.room || 
+    !activeRooms.has(data.room) || !activeRooms.get(data.room).readyForNewQuestion ||
+    io.sockets.adapter.rooms.get(data.room).size < activeRooms.get(data.room).totalPlayers) {
+    console.log("Cannot send a new question");
+    console.log("data:", data, "has room:", activeRooms.has(data.room), "readyForNew:", activeRooms.get(data.room).readyForNewQuestion,
+    "Players in socket room:",   io.sockets.adapter.rooms.get(data.room).size, "Number of players expected:", activeRooms.get(data.room).totalPlayers);
+    console.log(activeRooms);
     return;
   }
 
@@ -496,26 +507,39 @@ initializeActiveRooms();
 
 //in case server and client run on different urls
 io.on("connection", (socket) => {
-  // Setup rooms from config file
-  try {
-    let numOfRooms = 0;
-    activeRooms.forEach(function(value, key) {
-      socket.join(key);
-      numOfRooms++;
-    });
-    if(numOfRooms > 0) {
-      // console.log(numOfRooms, "rooms created in io", activeRooms);
-      // console.log("Requesting frontend to rejoin games...")
-      io.sockets.emit("request-rejoin", {})
+  const roomCode = socket.handshake.query.roomCode;
+  const username = socket.handshake.query.username;
+
+  if (socket.handshake.reconnection) {
+    console.log("User reconnected with code", roomCode, "and username", username, "from IP address", socket.request.connection.remoteAddress);
+    // Setup room
+    try {
+      socket.join(roomCode); 
+      setTimeout(() => {
+        sendLobbyToRoom(roomCode);
+      }, 600);    
+    } catch (error) {
+      console.log("Unable to rejoin room ", roomCode);
+      console.log(error);
     }
-  } catch (error) {
-    console.log("No old rooms to be remade in io");
-    console.log("Active Rooms:", activeRooms);
-    console.log(error);
+  } else {
+    console.log("User connected with code", roomCode, "and username", username, "from IP address", socket.request.connection.remoteAddress);
+    if(roomCode && username) {
+      socket.join(roomCode); 
+      if(activeRooms?.get(roomCode)?.gameRunning) {
+        setTimeout(() => {
+          requestQuestion({ room: roomCode });
+        }, 400);  
+      }
+
+      setTimeout(() => {
+        sendLobbyToRoom(roomCode);
+      }, 600);  
+    }
   }
 
-
   socket.on("join-room", (data) => {
+    console.log("Join request:", data);
     if (data.newGame) {
       socket.join(data.room);
       console.log("New Game:", data.room);
@@ -527,7 +551,7 @@ io.on("connection", (socket) => {
 
       setTimeout(() => {
         sendLobbyToRoom(data.room);
-      }, 400)
+      }, 400);
     } else {
       // check if the code exists
       if (activeRooms.has(data.room)) {
@@ -565,38 +589,13 @@ io.on("connection", (socket) => {
       }
     }
   });
- 
-  socket.on("rejoin-room", (data) => {
-    // console.log("Rejoining room with data:", data);
-
-    if (activeRooms.has(data.room)) {
-      socket.leaveAll();
-      socket.join(data.room);
-      socket.emit("room-code", data.room);
-      
-      if (activeRooms.get(data.room)?.gameRunning) {
-        try {
-          requestQuestion({ room: data.room });
-        } catch (error) {
-          console.log(error);
-        }
-      }
-      setTimeout(() => {
-        sendLobbyToRoom(data.room);
-      }, 400);
-      setTimeout(() => {
-        sendLobbyToRoom(data.room);
-      }, 2000)
-    } else {
-      console.log("Active rooms did not find", data.room);
-      console.log("Current Active Rooms is this:", activeRooms);
-      socket.emit("invalid-code", true);
-    }
-  });
 
   // User clicks the "Start Game" button, only accesible to the host
   socket.on("initialize-game", (data) => {
-    console.log("Room starting");
+    if(!activeRooms.has(data.room)) {
+      return;
+    }
+    console.log("Room", data.room, "starting");
     io.in(data.room).emit("started-game", {});
     const gameVars = activeRooms.get(data.room);
     gameVars.gameRunning = true;;

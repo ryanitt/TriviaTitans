@@ -8,20 +8,6 @@ let serverLeader = 1;
 
 async function getTitanServerContainers() {
   const containers = await d.listContainers({ all: true });
-  // console.log("Active Containers:");
-  // for (const container of containers) {
-  //   const containerId = container.Id;
-  //   const networkSettings = container.NetworkSettings.Networks;
-  //   if (networkSettings["titan"]) {
-  //     d.getContainer(containerId).inspect((err, data) => {
-  //       const config = data.Config;
-  //       if(data.Name != "/backend-rabbitmq-1" && data.Name != "/backend-docker-daemon-1") {
-  //         console.log(data.Name, config.ExposedPorts, data.HostConfig.PortBindings);
-  //       }
-  //     });
-  //   } 
-  // }
-  // console.log();
   return containers;
 }
 
@@ -33,7 +19,7 @@ setInterval(() => {
 const serverExchangeName = 'server-exchange';
 const daemonExchangeName = 'daemon-exchange';
 
-const instanceId = process.env.INSTANCE_ID;
+const instanceId = process.env.DAEMON_INSTANCE_ID;
 
 // Assume leader is srv1 to start
 let leader = process.env.LEADER; 
@@ -41,8 +27,6 @@ let leaderTimeout = null;
 
 // Create heartbeat timeout to check if leader is alive
 let heartbeatTimeout = null;
-
-
 
 // Wait utility function (to allow connection to RabbitMQ service to connect properly)
 function waitTime(time) {
@@ -65,7 +49,7 @@ const ddInitiateElection = () => {
       if(leaderTimeout != null) {
         clearTimeout(leaderTimeout);
       }
-      leaderTimeout = setTimeout(ddLeaderElected, 5000);
+      leaderTimeout = setTimeout(ddLeaderElected, 3000);
 
       console.log("Leader timeout started");
     },
@@ -155,7 +139,7 @@ const consumeDDSendHeartbeat = (msg) => {
     if(heartbeatTimeout != null) {
       clearTimeout(heartbeatTimeout);
     }
-    heartbeatTimeout = setTimeout(ddInitiateElection, 15000);
+    heartbeatTimeout = setTimeout(ddInitiateElection, 7000);
   }
 }
 
@@ -254,7 +238,8 @@ async function consumeLeaderElected(msg)  {
                 'PORT=8080',
                 'INSTANCE_ID=' + containerInstanceIdEntry,
                 'LEADER=' + containerInstanceIdEntry,
-                'RABBITMQ_HOST=rabbitmq'
+                'RABBITMQ_HOST=rabbitmq',
+                'WAIT_FOR_MQ=false'
               ]
             };
             
@@ -384,4 +369,4 @@ async function initializeDaemonMQ() {
 const serverMQChannel = initializeServerMQ();
 const daemonMQChannel = initializeDaemonMQ();
 
-setInterval(ddSendHeartbeat, 5000);
+setInterval(ddSendHeartbeat, 3000);
