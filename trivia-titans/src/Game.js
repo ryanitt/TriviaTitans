@@ -87,7 +87,7 @@ const Game = (props) => {
 
     return (
       <div>
-        <Card bg="#393f4a" shadow="sm" radius="md" sx={{ width: 100 }}>
+        <Card bg="#393f4a" shadow="sm" radius="md" sx={{ width: 100, height: 63 }}>
           <Text size="xl" fw={500} ta="center">
             {seconds.toLocaleString("en-US", { minimumIntegerDigits: 2 })}
           </Text>
@@ -217,14 +217,7 @@ const Game = (props) => {
     });
 
     socket.on("reconnect_attempt", (attemptNumber) => {
-      console.log(
-        "Reconnect attempt",
-        attemptNumber,
-        "with code",
-        room,
-        "and username",
-        username
-      );
+      console.log("Reconnect attempt", attemptNumber, "with code", room, "and username", username);
       socket.io.opts.query = {
         roomCode: room,
         username: username,
@@ -244,16 +237,7 @@ const Game = (props) => {
     return () => {
       socket.disconnect();
     };
-  }, [
-    arrangeLobby,
-    isHost,
-    navigate,
-    location.state.username,
-    location.state.room,
-    room,
-    username,
-    socket,
-  ]);
+  }, [arrangeLobby, isHost, navigate, location.state.username, location.state.room, room, username, socket]);
 
   return (
     <AppShell
@@ -280,10 +264,12 @@ const Game = (props) => {
     >
       <Center>
         {allPlayersAnswered ? (
-          <Text>All players answered!</Text>
+          <Text sx={{ height: 63 }}>All players answered!</Text>
         ) : timerStarted ? (
           <Timer initialTime={seconds} handleTimer={handleTimer} />
-        ) : null}
+        ) : (
+          <div style={{ height: "63px" }}></div>
+        )}
       </Center>
       <div className="centered">
         {startGame ? (
@@ -298,11 +284,7 @@ const Game = (props) => {
               {answerOptions.map((option) => (
                 <UnstyledButton
                   sx={{
-                    backgroundColor: clicked
-                      ? option === correctAnswer
-                        ? "#2B8A3E"
-                        : "#C92A2A"
-                      : "#1864ab",
+                    backgroundColor: clicked ? (option === correctAnswer ? "#2B8A3E" : "#C92A2A") : "#1864ab",
                     borderRadius: "5px",
                     "&:hover": {
                       backgroundColor: "#339af0",
