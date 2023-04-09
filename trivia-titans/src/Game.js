@@ -31,6 +31,7 @@ const Game = (props) => {
   const [answerOptions, setAnswerOptions] = useState([]);
   const [correctAnswer, setCorrectAnswer] = useState("");
   const [clicked, setClicked] = useState(false);
+  const [allPlayersAnswered, setAllPlayersAnswered] = useState(false);
   const [timerStarted, setTimerStarted] = useState(false);
   const [seconds, setSeconds] = useState(15);
   const location = useLocation();
@@ -69,7 +70,7 @@ const Game = (props) => {
     const intervalRef = useRef(null);
 
     useEffect(() => {
-      if (seconds === 0 || props.clicked) {
+      if (seconds === 0) {
         props.handleTimer();
       } else {
         intervalRef.current = setInterval(() => {
@@ -103,7 +104,6 @@ const Game = (props) => {
       setCurrentQuestion("");
       setCorrectAnswer("");
       socket.emit("request-question", { room: room });
-      setTimerStarted(true);
     }, 3000);
   };
 
@@ -186,11 +186,19 @@ const Game = (props) => {
     });
 
     socket.on("new-question", (data) => {
+      setTimerStarted(true);
       setCurrentQuestion(data.currentQuestion);
       setAnswerOptions(data.answerOptions);
       setCorrectAnswer(data.correctAnswer);
       setSeconds(data.time);
       setClicked(false);
+    });
+
+    socket.on("all-players-answered", () => {
+      setAllPlayersAnswered(true);
+      setTimeout(() => {
+        setAllPlayersAnswered(false);
+      }, 3000);
     });
 
     socket.on("room-deleted", () => {
@@ -209,7 +217,14 @@ const Game = (props) => {
     });
 
     socket.on("reconnect_attempt", (attemptNumber) => {
-      console.log("Reconnect attempt", attemptNumber, "with code", room, "and username", username);
+      console.log(
+        "Reconnect attempt",
+        attemptNumber,
+        "with code",
+        room,
+        "and username",
+        username
+      );
       socket.io.opts.query = {
         roomCode: room,
         username: username,
@@ -229,7 +244,16 @@ const Game = (props) => {
     return () => {
       socket.disconnect();
     };
-  }, [arrangeLobby, isHost, navigate, location.state.username, location.state.room, room, username, socket]);
+  }, [
+    arrangeLobby,
+    isHost,
+    navigate,
+    location.state.username,
+    location.state.room,
+    room,
+    username,
+    socket,
+  ]);
 
   return (
     <AppShell
@@ -255,8 +279,10 @@ const Game = (props) => {
       }
     >
       <Center>
-        {clicked ? null : timerStarted ? (
-          <Timer initialTime={seconds} handleTimer={handleTimer} clicked={clicked} />
+        {allPlayersAnswered ? (
+          <Text>All players answered!</Text>
+        ) : timerStarted ? (
+          <Timer initialTime={seconds} handleTimer={handleTimer} />
         ) : null}
       </Center>
       <div className="centered">
@@ -272,7 +298,11 @@ const Game = (props) => {
               {answerOptions.map((option) => (
                 <UnstyledButton
                   sx={{
-                    backgroundColor: clicked ? (option === correctAnswer ? "#2B8A3E" : "#C92A2A") : "#1864ab",
+                    backgroundColor: clicked
+                      ? option === correctAnswer
+                        ? "#2B8A3E"
+                        : "#C92A2A"
+                      : "#1864ab",
                     borderRadius: "5px",
                     "&:hover": {
                       backgroundColor: "#339af0",

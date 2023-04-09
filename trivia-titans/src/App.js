@@ -23,8 +23,17 @@ const App = (props) => {
   const [errorText, setErrorText] = useState("");
 
   const useJoinGame = () => {
-    if (roomRef.current !== "" && !invalidCode && !limitReached && !gameRunning && !invalidUsername) {
-      // TODO: if its an invalid code dont send this emit
+    if (
+      roomRef.current !== "" &&
+      !invalidCode &&
+      !limitReached &&
+      !gameRunning &&
+      !invalidUsername
+    ) {
+      if (username === "" || username === null) {
+        setErrorText("Please enter a username.");
+        return;
+      }
       appSocket.connect();
       console.log("Sending attempt to join room", room, "with username", username);
       appSocket.emit("join-room", {
@@ -38,6 +47,10 @@ const App = (props) => {
   };
 
   const handleNewGame = () => {
+    if (username === "" || username === null) {
+      setErrorText("Please enter a username.");
+      return;
+    }
     let generatedRoom = Math.floor(1000 + Math.random() * 9000).toString();
 
     roomRef.current = generatedRoom;
@@ -47,7 +60,9 @@ const App = (props) => {
       newGame: true,
     });
 
-    navigate("/game", { state: { username: usernameRef.current, room: roomRef.current } });
+    navigate("/game", {
+      state: { username: usernameRef.current, room: roomRef.current },
+    });
   };
 
   const clearStates = () => {
@@ -57,13 +72,14 @@ const App = (props) => {
     setShowAlert(false);
     setInvalidUsername(false);
     setErrorText("");
-    setUsername("");
-    setRoom("");
   };
 
   useEffect(() => {
     appSocket.on("join-success", (data) => {
-      if (data) navigate("/game", { state: { username: usernameRef.current, room: roomRef.current } });
+      if (data)
+        navigate("/game", {
+          state: { username: usernameRef.current, room: roomRef.current },
+        });
     });
     appSocket.on("limit-reached", (data) => {
       if (data) setLimitReached(true);
@@ -172,6 +188,10 @@ const App = (props) => {
             onChange={(e) => setUsername(e.currentTarget.value)}
             required
           />
+          <Space h="md" />
+          <Text color="red" size="md">
+            {errorText}
+          </Text>
           <Space h="md" />
           <Center>
             <Button onClick={handleNewGame}>Create Game</Button>

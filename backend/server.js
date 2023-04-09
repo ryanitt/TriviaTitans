@@ -361,6 +361,7 @@ function createRoom(roomCode) {
     correctAnswer: "",
     questionsAsked: new Map(),
     readyForNewQuestion: true,
+    gameRunning: false,
   };
   activeRooms.set(roomCode, gameVariables);
 }
@@ -685,9 +686,10 @@ io.on("connection", (socket) => {
     sendLobbyToRoom(data.room);
 
     // If all users answer the question
-    if (gameVars.answersReceived >= gameVars.totalPlayers) {
+    if (gameVars.answersReceived >= gameVars.totalPlayers && gameVars.gameRunning) {
       await fetchData(data.room);
       gameVars.answersReceived = 0;
+      io.in(data.room).emit("all-players-answered", {});
       setTimeout(async () => {
         console.log("Sending timeout question to Room", data.room);
         await fetchData(data.room);
@@ -718,9 +720,10 @@ io.on("connection", (socket) => {
     sendLobbyToRoom(data.room);
 
     // Now that 1 player left, recheck if new question required
-    if (gameVars?.answersReceived >= gameVars?.totalPlayers) {
+    if (gameVars?.answersReceived >= gameVars?.totalPlayers && gameVars.gameRunning) {
       await fetchData(data.room);
       gameVars.answersReceived = 0;
+      io.in(data.room).emit("all-players-answered", {});
       setTimeout(() => {
         console.log("Sending timeout leave-game question to Room", data.room);
         io.in(data.room).emit("new-question", {
