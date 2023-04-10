@@ -58,7 +58,11 @@ You may encounter errors when running `docker compose up --build`. Specifically,
 # Contributors
 
 Andrew Eom
+
 Vanessa Chen
+
 Steven Ha
+
 Ryan Ittiyipe
+
 Vincent Zheng
