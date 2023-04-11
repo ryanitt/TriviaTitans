@@ -9,7 +9,7 @@ https://www.docker.com/products/docker-desktop/
 
 As well as the latest LTS version of Node.js: https://nodejs.org/en
 
-The connections to the database are not valid for those that are not authenticated as of now, access can be requested.
+The connections to the database are not valid for those that are not authenticated as of now, access can be requested. If you are authenticated to access our databases, you need to download MongoDB Compass to test with the databases: https://www.mongodb.com/products/compass
 
 After downloading the contents of the repository. Enter the **trivia-titans** directory through your terminal. We recommend opening on Visual Studio Code. Enter the following command:
 
