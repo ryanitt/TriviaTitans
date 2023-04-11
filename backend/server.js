@@ -14,11 +14,13 @@ let PORT = process.env.PORT || 8080;
 // MongoDB stuff
 // const mongourl =
 //   "mongodb+srv://triviatitans:triviatitans123@cluster0.gtvyghr.mongodb.net/?retryWrites=true&w=majority";
+
 const mongourls = [
   "mongodb+srv://triviatitans:triviatitans123@cluster0.gtvyghr.mongodb.net/?retryWrites=true&w=majority",
   "mongodb+srv://triviatitans:triviatitans123@cluster0.jpzyzmh.mongodb.net/?retryWrites=true&w=majority",
   "mongodb+srv://triviatitans:triviatitans123@cluster0.b27r3yz.mongodb.net/?retryWrites=true&w=majority",
 ];
+
 let dbNum = 0;
 // const mongourl = "mongodb://127.0.0.1:27017/";
 
