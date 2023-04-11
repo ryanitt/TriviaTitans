@@ -2,8 +2,6 @@
 
 A distributed trivia game made with React. Our objective was to create a fun and competitive game with up to 5 players per room. The motivation behind the project was to create an interesting trivia game where friends can play together on their free time, as well as learn about distributed systems architecture whilst building the application. Uses a React frontend with a Node.js backend. Socket.io WebSockets were used to connect the frontend to the backend. MongoDB was used for our database. Servers deployed using Docker containers.
 
-**Image here**
-
 # Installation and Setup
 
 Docker Desktop is required to run the application which can be downloaded from the following link:
@@ -50,7 +48,21 @@ docker compose down
 ```
 
 # Testing
-By running the frontend
+
+To test the fault tolerance, you may remove a server or daemon by deleting the container on Docker Desktop while running a game on the frontend. Deleting the primary server should pause the frontend for a bit, deleting the docker daemon should not affect the game running in the frontend. To test the crash of a database, log in to one of the databases and delete the triviatitans database.
 
 # Troubleshooting
+
 You may encounter errors when running `docker compose up --build`. Specifically, the docker-daemon may throw an error on start. If this happens, try killing the terminal, deleting the `backend` docker container group, and run `docker compose up --build` again. If the issue is persistent, try restarting your computer.
+
+# Contributors
+
+Andrew Eom
+
+Vanessa Chen
+
+Steven Ha
+
+Ryan Ittiyipe
+
+Vincent Zheng
