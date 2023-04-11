@@ -20,11 +20,7 @@ const socket = io.connect("http://localhost:8080/", {
 });
 
 root.render(
-  <MantineProvider
-    theme={{ colorScheme: "dark" }}
-    withGlobalStyles
-    withNormalizeCSS
-  >
+  <MantineProvider theme={{ colorScheme: "dark" }} withGlobalStyles withNormalizeCSS>
     <HashRouter>
       <Routes>
         <Route exact path="/" element={<App socket={socket} />} />

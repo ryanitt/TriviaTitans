@@ -1,15 +1,7 @@
 import logo from "./logo.svg";
 import "./App.css";
 import { useLocation, useNavigate } from "react-router-dom";
-import {
-  Alert,
-  Button,
-  Center,
-  Modal,
-  Space,
-  Text,
-  TextInput,
-} from "@mantine/core";
+import { Alert, Button, Center, Modal, Space, Text, TextInput } from "@mantine/core";
 import { useState, useEffect, useRef } from "react";
 
 const App = (props) => {
@@ -38,7 +30,10 @@ const App = (props) => {
       !gameRunning &&
       !invalidUsername
     ) {
-      // TODO: if its an invalid code dont send this emit
+      if (username === "" || username === null) {
+        setErrorText("Please enter a username.");
+        return;
+      }
       appSocket.connect();
       console.log("Sending attempt to join room", room, "with username", username);
       appSocket.emit("join-room", {
@@ -52,6 +47,10 @@ const App = (props) => {
   };
 
   const handleNewGame = () => {
+    if (username === "" || username === null) {
+      setErrorText("Please enter a username.");
+      return;
+    }
     let generatedRoom = Math.floor(1000 + Math.random() * 9000).toString();
 
     roomRef.current = generatedRoom;
@@ -61,7 +60,9 @@ const App = (props) => {
       newGame: true,
     });
 
-    navigate("/game", { state: { username: usernameRef.current, room: roomRef.current } });
+    navigate("/game", {
+      state: { username: usernameRef.current, room: roomRef.current },
+    });
   };
 
   const clearStates = () => {
@@ -71,13 +72,14 @@ const App = (props) => {
     setShowAlert(false);
     setInvalidUsername(false);
     setErrorText("");
-    setUsername("");
-    setRoom("");
   };
 
   useEffect(() => {
     appSocket.on("join-success", (data) => {
-      if (data) navigate("/game", { state: { username: usernameRef.current, room: roomRef.current } });
+      if (data)
+        navigate("/game", {
+          state: { username: usernameRef.current, room: roomRef.current },
+        });
     });
     appSocket.on("limit-reached", (data) => {
       if (data) setLimitReached(true);
@@ -134,17 +136,11 @@ const App = (props) => {
       <Space h="lg" />
 
       <Center>
-        <Button
-          size="lg"
-          onClick={() => setIsNewGameModalOpen(!isNewGameModalOpen)}
-        >
+        <Button size="lg" onClick={() => setIsNewGameModalOpen(!isNewGameModalOpen)}>
           New Game
         </Button>
         <Space w="lg" />
-        <Button
-          size="lg"
-          onClick={() => setIsJoinGameModalOpen(!isJoinGameModalOpen)}
-        >
+        <Button size="lg" onClick={() => setIsJoinGameModalOpen(!isJoinGameModalOpen)}>
           Join Game
         </Button>
         <Modal
@@ -192,6 +188,10 @@ const App = (props) => {
             onChange={(e) => setUsername(e.currentTarget.value)}
             required
           />
+          <Space h="md" />
+          <Text color="red" size="md">
+            {errorText}
+          </Text>
           <Space h="md" />
           <Center>
             <Button onClick={handleNewGame}>Create Game</Button>
