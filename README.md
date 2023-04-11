@@ -55,6 +55,20 @@ To test the fault tolerance, you may remove a server or daemon by deleting the c
 
 You may encounter errors when running `docker compose up --build`. Specifically, the docker-daemon may throw an error on start. If this happens, try killing the terminal, deleting the `backend` docker container group, and run `docker compose up --build` again. If the issue is persistent, try restarting your computer.
 
+Additionally, if you get an error similar to the following:
+
+```powershell
+2023-04-06 12:26:54 Error: connect ECONNREFUSED /var/run/docker.sock
+2023-04-06 12:26:54     at PipeConnectWrap.afterConnect [as oncomplete] (node:net:1278:16) {
+2023-04-06 12:26:54   errno: -111,
+2023-04-06 12:26:54   code: 'ECONNREFUSED',
+2023-04-06 12:26:54   syscall: 'connect',
+2023-04-06 12:26:54   address: '/var/run/docker.sock'
+2023-04-06 12:26:54 }
+```
+
+Try restarting your computer.
+
 # Contributors
 
 Andrew Eom
