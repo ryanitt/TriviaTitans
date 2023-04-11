@@ -23,16 +23,16 @@ The port must be configured to your personal IP address and port after port forw
 
 # Usage
 
-To run the frontend, run the following command in the **trivia-titans** directory:
-
-```powershell
-npm start
-```
-
 To run the backend, run the following command in a separate terminal in the **backend** directory.
 
 ```powershell
 docker compose up --build
+```
+
+To run the frontend, run the following command in the **trivia-titans** directory:
+
+```powershell
+npm start
 ```
 
 After running the frontend, your default web browser should open with a window. You should be given two options, "New Game" and "Join Game".
@@ -49,7 +49,7 @@ docker compose down
 
 # Testing
 
-To test the fault tolerance, you may remove a server or daemon by deleting the container on Docker Desktop while running a game on the frontend. Deleting the primary server should pause the frontend for a bit, deleting the docker daemon should not affect the game running in the frontend. To test the crash of a database, log in to one of the databases and delete the triviatitans database.
+To test the fault tolerance, you may remove a server or daemon by deleting the container on Docker Desktop while running a game on the frontend. Deleting the primary server should pause the frontend for a bit, deleting the docker daemon should not affect the game running in the frontend. To test the crash of a database, open MongoDB Compass and go to the cluster. Select the **triviatitans** database and drop the **questions** collection. To remake the database, create a new one on MongoDB. The database name should be called **triviatitans** and the collection should be called **questions**. Then add the data again by importing the questions.json file in the **data** directory from the repository. Credentials to the MongoDB accounts will be provided to trusted TA's.
 
 # Troubleshooting
 
