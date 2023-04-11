@@ -207,8 +207,10 @@ const consumeUpdateData = (msg) => {
   if (msg.properties.headers["instance-id"] == instanceId) {
     console.log("Received my own room update");
   } else {
-    activeRooms = new Map(JSON.parse(msg.content));
-    console.log("Updated active rooms with new data: " + activeRooms);
+    parsedJSONActiveRooms = JSON.parse(msg.content);
+    activeRooms = new Map(parsedJSONActiveRooms);
+    console.log("Recieved new game state update:");
+    console.log(JSON.stringify(Array.from(activeRooms)));
 
     activeRooms.forEach(function (value, key) {
       if (value) {
