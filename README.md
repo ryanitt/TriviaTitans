@@ -72,7 +72,11 @@ Try restarting your computer.
 # Contributors
 
 Andrew Eom
+
 Vanessa Chen
+
 Steven Ha
+
 Ryan Ittiyipe
+
 Vincent Zheng
