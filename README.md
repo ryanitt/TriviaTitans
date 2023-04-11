@@ -77,6 +77,6 @@ Vanessa Chen
 
 Steven Ha
 
-Ryan Ittiyipe
+Ryan Ittyipe
 
 Vincent Zheng
