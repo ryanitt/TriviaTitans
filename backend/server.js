@@ -15,8 +15,8 @@ let PORT = process.env.PORT || 8080;
 // const mongourl =
 //   "mongodb+srv://triviatitans:triviatitans123@cluster0.gtvyghr.mongodb.net/?retryWrites=true&w=majority";
 const mongourls = ["mongodb+srv://triviatitans:triviatitans123@cluster0.gtvyghr.mongodb.net/?retryWrites=true&w=majority", 
-                  "mongodb+srv://triviatitans:triviatitans123@cluster0.jpzyzmh.mongodb.net/?retryWrites=true&w=majority",
-                  "mongodb+srv://triviatitans:triviatitans123@cluster0.b27r3yz.mongodb.net/?retryWrites=true&w=majority"];
+                   "mongodb+srv://triviatitans:triviatitans123@cluster0.jpzyzmh.mongodb.net/?retryWrites=true&w=majority",
+                   "mongodb+srv://triviatitans:triviatitans123@cluster0.b27r3yz.mongodb.net/?retryWrites=true&w=majority"];
 let dbNum = 0;
 // const mongourl = "mongodb://127.0.0.1:27017/";
 
@@ -202,8 +202,10 @@ const consumeUpdateData = (msg) => {
   if(msg.properties.headers["instance-id"] == instanceId) {
     console.log("Received my own room update");
   } else {
-    activeRooms = new Map(JSON.parse(msg.content));
-    console.log("Updated active rooms with new data: " + activeRooms);
+    parsedJSONActiveRooms = JSON.parse(msg.content);
+    activeRooms = new Map(parsedJSONActiveRooms);
+    console.log("Recieved new game state update:");
+    console.log(JSON.stringify(Array.from(activeRooms)));
 
     activeRooms.forEach(function(value, key) {
       if(value) {
